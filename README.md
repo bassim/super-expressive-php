@@ -1,5 +1,3 @@
-# super-expressive-php
-
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/bassim/super-expressive-php.svg?style=for-the-badge)](https://packagist.org/packages/super-expressive-php)
 [![License](https://img.shields.io/github/license/bassim/super-expressive-php?style=for-the-badge)](https://github.com/super-expressive-php/blob/master/LICENSE.md)
 ![Postcardware](https://img.shields.io/badge/Postcardware-%F0%9F%92%8C-197593?style=for-the-badge)
@@ -35,8 +33,6 @@ For the complete API documentation, visit https://github.com/francisrstokes/supe
 The following example recognises and captures the value of a 16-bit hexadecimal number like `0xC0D3`.
 
 ```php
-const SuperExpressive = require('super-expressive');
-
 $myRegex = (new SuperExpressive())
   ->startOfInput()
   ->optional()->string('0x')
