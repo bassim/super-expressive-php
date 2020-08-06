@@ -293,7 +293,7 @@ final class SuperExpressive
       case 'atLeast':
       case 'exactly':
         $inner = self::evaluate($el->value);
-        $withGroup = $el->value->quantifierRequiresGroup ? strtr('(?:${inner})', ['${inner}' => $inner]) : $inner;
+        $withGroup = property_exists($el->value, 'quantifierRequiresGroup') && $el->value->quantifierRequiresGroup ? strtr('(?:${inner})', ['${inner}' => $inner]) : $inner;
         return strtr('${withGroup}'.strtr(self::$quantifierTable[$el->type], ['${times}'=>$el->times]),['${withGroup}' => $withGroup]);
 
 //
