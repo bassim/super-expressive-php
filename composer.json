@@ -1,37 +1,49 @@
 {
-  "name": "bassim/super-expressive-php",
-  "type": "project",
-  "description": "",
-  "homepage": "https://github.com/bassim/super-expressive-php",
-  "license": "MIT",
-  "require": {
-    "php": "^7.4"
-  },
-  "require-dev": {
-    "phpunit/phpunit": "^9.0",
-    "vimeo/psalm": "^3.12"
-  },
-  "config": {
-    "sort-packages": true
-  },
-  "autoload": {
-    "psr-4": {
-      "Bassim\\SuperExpressive\\": "src"
+    "name": "bassim/super-expressive-php",
+    "type": "project",
+    "description": "",
+    "keywords": [
+        "bassim",
+        "regex",
+        "regexp",
+        "super-expressive"
+    ],
+    "homepage": "https://github.com/bassim/super-expressive-php",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Bas Simons",
+            "email": "bassim@xs4allnl",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.0",
+        "vimeo/psalm": "^3.12"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "autoload": {
+        "psr-4": {
+            "Bassim\\SuperExpressive\\": "src"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Bassim\\SuperExpressive\\Tests\\": "tests"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/phpunit --colors=always",
+        "test-coverage": "vendor/bin/phpunit --coverage-html coverage"
+    },
+    "support": {
+        "issues": "https://github.com/bassim/super-expressive/issues",
+        "source": "https://github.com/bassim/super-expressive",
+        "docs": "https://github.com/bassim/super-expressive"
     }
-  },
-  "autoload-dev": {
-    "psr-4": {
-      "Bassim\\SuperExpressive\\Tests\\": "tests"
-    }
-  },
-  "scripts": {
-    "test": "vendor/bin/phpunit --colors=always",
-    "test-coverage": "vendor/bin/phpunit --coverage-html coverage"
-  },
-  "support": {
-    "issues": "https://github.com/bassim/super-expressive/issues",
-    "source": "https://github.com/bassim/super-expressive",
-    "docs": "https://github.com/bassim/super-expressive"
-  }
-
 }
