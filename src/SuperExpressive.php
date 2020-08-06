@@ -59,17 +59,17 @@ final class SuperExpressive
 //            group: deferredType('group', { containsChildren: true }),
 //            assertAhead: deferredType('assertAhead', { containsChildren: true }),
 //            assertNotAhead: deferredType('assertNotAhead', { containsChildren: true }),
-            'atLeast' => $this->deferredType('atLeast', [ 'containsChild' => true ]),
+            'atLeast' => $this->deferredType('atLeast', ['containsChild' => true]),
 //            between: (x, y) => deferredType('between', { times: [x, y], containsChild: true }),
 //            betweenLazy: (x, y) => deferredType('betweenLazy', { times: [x, y], containsChild: true }),
 //            zeroOrMore: deferredType('zeroOrMore', { containsChild: true }),
 //            zeroOrMoreLazy: deferredType('zeroOrMoreLazy', { containsChild: true }),
-            'oneOrMore' => $this->deferredType('oneOrMore', [ 'containsChild' => true ]),
+            'oneOrMore' => $this->deferredType('oneOrMore', ['containsChild' => true]),
             //oneOrMoreLazy: deferredType('oneOrMoreLazy', { containsChild: true }),
 
             'anyOf' => $this->deferredType('anyOf', ['containsChildren' => true]),
             'optional' => $this->deferredType('optional', ['containsChild' => true]),
-            'exactly'=> $this->deferredType('exactly', [ 'containsChild' => true ]),
+            'exactly' => $this->deferredType('exactly', ['containsChild' => true]),
         ];
 
         $this->state = (object)[
@@ -91,7 +91,7 @@ final class SuperExpressive
 
     private static function isFusable(): \Closure
     {
-        return function($element) {
+        return function ($element) {
             return in_array($element->type, ['range', 'char', 'anyOfChars']);
         };
     }
@@ -100,18 +100,18 @@ final class SuperExpressive
     {
         [$fusables, $rest] = self::partition(self::isFusable(), $elements);
 
-        $callbackFused =static function ($n) {
-            if(in_array($n->type,['char','anyOfChars'])) {
+        $callbackFused = static function ($n) {
+            if (in_array($n->type, ['char', 'anyOfChars'])) {
                 return $n->value;
             }
-            return strtr('${el.value[0]}-${el.value[1]}', ['${el.value[0]}'=>$n->value[0], '${el.value[1]}'=>$n->value[1]]);
+            return strtr('${el.value[0]}-${el.value[1]}', ['${el.value[0]}' => $n->value[0], '${el.value[1]}' => $n->value[1]]);
         };
         $fused = implode('', array_map($callbackFused, $fusables));
 
         return [$fused, $rest];
     }
 
-    private static function partition(\Closure $pred,$elements): array
+    private static function partition(\Closure $pred, $elements): array
     {
         $fusables = [];
         $rest = [];
@@ -123,7 +123,7 @@ final class SuperExpressive
             }
         }
 
-        return [$fusables,$rest];
+        return [$fusables, $rest];
     }
 
     public function anyChar(): self
@@ -269,13 +269,13 @@ final class SuperExpressive
             case 'anythingButRange':
                 return strtr('[^${el.value[0]}-${el.value[1]}]', ['${el.value[0]}' => $el->value[0], '${el.value[1]}' => $el->value[1]]);
             case 'anyOfChars':
-                return strtr('[${el.value}]', ['${el.value}'=>$el->value]);
+                return strtr('[${el.value}]', ['${el.value}' => $el->value]);
             case 'anythingButChars':
-                return strtr('[^${el.value}]', ['${el.value}'=>$el->value]);
+                return strtr('[^${el.value}]', ['${el.value}' => $el->value]);
             case 'namedBackreference':
-                return strtr('\\k<${el.metadata}>', ['${el.metadata}'=>$el->metadata]);
+                return strtr('\\k<${el.metadata}>', ['${el.metadata}' => $el->metadata]);
             case 'backreference':
-                return strtr('\\${el.metadata}', ['${el.metadata}'=>$el->metadata]);
+                return strtr('\\${el.metadata}', ['${el.metadata}' => $el->metadata]);
 
             case 'optional':
             case 'zeroOrMore':
@@ -288,25 +288,23 @@ final class SuperExpressive
 
                 return strtr('${withGroup}${symbol}', ['${withGroup}' => $withGroup, '${symbol}' => $symbol]);
 
-      case 'betweenLazy':
-      case 'between':
-      case 'atLeast':
-      case 'exactly':
-        $inner = self::evaluate($el->value);
-        $withGroup = property_exists($el->value, 'quantifierRequiresGroup') && $el->value->quantifierRequiresGroup ? strtr('(?:${inner})', ['${inner}' => $inner]) : $inner;
-        return strtr('${withGroup}'.strtr(self::$quantifierTable[$el->type], ['${times}'=>$el->times]),['${withGroup}' => $withGroup]);
+            case 'betweenLazy':
+            case 'between':
+            case 'atLeast':
+            case 'exactly':
+                $inner = self::evaluate($el->value);
+                $withGroup = property_exists($el->value, 'quantifierRequiresGroup') && $el->value->quantifierRequiresGroup ? strtr('(?:${inner})', ['${inner}' => $inner]) : $inner;
+                return strtr('${withGroup}' . strtr(self::$quantifierTable[$el->type], ['${times}' => $el->times]), ['${withGroup}' => $withGroup]);
 
-//
-      case 'anythingButString':
-        //const chars = el.value.split('').map(c => `[^${c}]`).join('');
-        $chars = str_split($el->value);
-        $callback = function ($c) {
-          return strtr('[^${c}]',['${c}'=>$c]);
-        };
-        $chars = array_map($callback, $chars);
-        $chars = implode('', $chars);
+            case 'anythingButString':
+                $chars = str_split($el->value);
+                $callback = static function ($c) {
+                    return strtr('[^${c}]', ['${c}' => $c]);
+                };
+                $chars = array_map($callback, $chars);
+                $chars = implode('', $chars);
                 //.map(c => `[^${c}]`).join('');
-        return strtr('(?:${chars})', ['${chars}'=>$chars]);
+                return strtr('(?:${chars})', ['${chars}' => $chars]);
 
 //
 //      case 'assertAhead': {
@@ -322,18 +320,15 @@ final class SuperExpressive
             case 'anyOf':
 
                 [$fused, $rest] = self::fuseElements($el->value);
-                if (count($rest)<1) {
-                    return strtr('[${fused}]', ['${fused}'=>$fused]);
+                if (count($rest) < 1) {
+                    return strtr('[${fused}]', ['${fused}' => $fused]);
                 }
 
-                $evaluatedRest = array_map(function($e){
+                $evaluatedRest = array_map(function ($e) {
                     return self::evaluate($e);
-                },$rest);// $rest.map(SuperExpressive[evaluate]);
-                $separator = (count($evaluatedRest)>0 && strlen($fused) > 0) ? '|' : '';
-                return '(?:'.implode('|', $evaluatedRest).$separator.('' !== $fused ? '['.$fused.']': '').')';
-//        return `(?:${evaluatedRest.join('|')}${separator}${fused ? `[${fused}]` : ''})`;
-
-            //
+                }, $rest);// $rest.map(SuperExpressive[evaluate]);
+                $separator = (count($evaluatedRest) > 0 && strlen($fused) > 0) ? '|' : '';
+                return '(?:' . implode('|', $evaluatedRest) . $separator . ('' !== $fused ? '[' . $fused . ']' : '') . ')';
 //      case 'capture': {
 //    const evaluated = el.value.map(SuperExpressive[evaluate]);
 //    return `(${evaluated.join('')})`;
@@ -444,21 +439,21 @@ final class SuperExpressive
         return $this->quantifierElement('zeroOrMore');
     }
 
-    public function zeroOrMoreLazy(): self  { return $this->quantifierElement('zeroOrMoreLazy'); }
-    public function oneOrMore(): self  { return $this->quantifierElement('oneOrMore'); }
-    public function oneOrMoreLazy(): self  { return $this->quantifierElement('oneOrMoreLazy'); }
+    public function zeroOrMoreLazy(): self
+    {
+        return $this->quantifierElement('zeroOrMoreLazy');
+    }
 
-    /*
-  end() {
-    assert(this.state.stack.length > 1, 'Cannot call end while building the root expression.');
+    public function oneOrMore(): self
+    {
+        return $this->quantifierElement('oneOrMore');
+    }
 
-    const next = this[clone]();
-    const oldFrame = next.state.stack.pop();
-    const currentFrame = next[getCurrentFrame]();
-    currentFrame.elements.push(next[applyQuantifier](oldFrame.type.value(oldFrame.elements)));
-    return next;
-  }
-     */
+    public function oneOrMoreLazy(): self
+    {
+        return $this->quantifierElement('oneOrMoreLazy');
+    }
+
     public function end(): self
     {
         $oldFrame = array_pop($this->state->stack);
@@ -554,19 +549,6 @@ final class SuperExpressive
         return $this;
     }
 
-    /*
-       anythingButChars(chars) {
-    assert(typeof chars === 'string', `chars must be a string (got ${chars})`);
-    assert(chars.length > 0, `chars must have at least one character`);
-
-    const next = this[clone]();
-    const elementValue = t.anythingButChars(escapeSpecial(chars));
-    const currentFrame = next[getCurrentFrame]();
-    currentFrame.elements.push(next[applyQuantifier](elementValue));
-
-    return next;
-  }
-     */
     public function anythingButChars(string $string): self
     {
         $n = clone $this->t->anythingButChars;
@@ -580,19 +562,6 @@ final class SuperExpressive
 
     }
 
-    /*
-       anythingButString(str) {
-    assert(typeof str === 'string', `str must be a string (got ${str})`);
-    assert(str.length > 0, `str must have least one character`);
-
-    const next = this[clone]();
-    const elementValue = t.anythingButString(escapeSpecial(str));
-    const currentFrame = next[getCurrentFrame]();
-    currentFrame.elements.push(next[applyQuantifier](elementValue));
-
-    return next;
-  }
-     */
     public function anythingButString(string $string): self
     {
         $n = clone $this->t->anythingButString;
@@ -605,17 +574,6 @@ final class SuperExpressive
         return $this;
     }
 
-    /*
-         assert(Number.isInteger(n) && n > 0, `n must be a positive integer (got ${n})`);
-
-    const next = this[clone]();
-    const currentFrame = next[getCurrentFrame]();
-    if (currentFrame.quantifier) {
-      throw new Error(`cannot quantify regular expression with "exactly" because it's already being quantified with "${currentFrame.quantifier.type}"`);
-    }
-    currentFrame.quantifier = t.exactly(n);
-    return next;
-     */
     public function exactly(int $int): self
     {
         $currentFrame = $this->getCurrentFrame();
@@ -629,19 +587,6 @@ final class SuperExpressive
         return $this;
     }
 
-    /*
-    atLeast(n) {
-    assert(Number.isInteger(n) && n > 0, `n must be a positive integer (got ${n})`);
-
-    const next = this[clone]();
-    const currentFrame = next[getCurrentFrame]();
-    if (currentFrame.quantifier) {
-      throw new Error(`cannot quantify regular expression with "atLeast" because it's already being quantified with "${currentFrame.quantifier.type}"`);
-    }
-    currentFrame.quantifier = t.atLeast(n);
-    return next;
-  }
-     */
     public function atLeast(int $int): self
     {
         $currentFrame = $this->getCurrentFrame();
@@ -695,7 +640,7 @@ final class SuperExpressive
     return next;
   }
      */
-    public function subexpression(SuperExpressive $expr, $opts=[]): self
+    public function subexpression(SuperExpressive $expr, $opts = []): self
     {
         $options = $this->applySubexpressionDefaults($opts);
         $exprNext = clone $expr;

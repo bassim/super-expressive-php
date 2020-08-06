@@ -131,7 +131,8 @@ final class SuperExpressiveTest extends TestCase
                     ->range('0','9')
                     ->string('XXX')
                 ->end()
-                ->toRegexString());
+                ->toRegexString()
+        );
 
     }
 
@@ -141,7 +142,8 @@ final class SuperExpressiveTest extends TestCase
         $this->assertEquals('/[aeiou]/',
             $superExpressive
                 ->anyOfChars('aeiou')
-                ->toRegexString());
+                ->toRegexString()
+        );
 
     }
 
@@ -151,7 +153,8 @@ final class SuperExpressiveTest extends TestCase
         $this->assertEquals('/[^aeiou]/',
             $superExpressive
                 ->anythingButChars('aeiou')
-                ->toRegexString());
+                ->toRegexString()
+        );
 
     }
 
@@ -161,7 +164,8 @@ final class SuperExpressiveTest extends TestCase
         $this->assertEquals('/(?:[^a][^e][^i][^o][^u])/',
             $superExpressive
                 ->anythingButString('aeiou')
-                ->toRegexString());
+                ->toRegexString()
+        );
 
     }
 
@@ -189,13 +193,6 @@ final class SuperExpressiveTest extends TestCase
 
     public function test_on_or_more(): void
     {
-        /*
-         * SuperExpressive()
-  .oneOrMore.digit
-  .toRegex();
-// ->
-/\d+/
-         */
         $superExpressive = new SuperExpressive();
         $this->assertEquals('/\d+/',
             $superExpressive
