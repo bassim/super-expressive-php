@@ -283,7 +283,7 @@ final class SuperExpressive
             case 'oneOrMore':
             case 'oneOrMoreLazy':
                 $inner = self::evaluate($el->value);
-                $withGroup = $el->value->quantifierRequiresGroup ? strtr('(?:${inner})', ['${inner}' => $inner]) : $inner;
+                $withGroup = property_exists($el->value, 'quantifierRequiresGroup') && $el->value->quantifierRequiresGroup ? strtr('(?:${inner})', ['${inner}' => $inner]) : $inner;
                 $symbol = self::$quantifierTable[$el->type];
 
                 return strtr('${withGroup}${symbol}', ['${withGroup}' => $withGroup, '${symbol}' => $symbol]);
