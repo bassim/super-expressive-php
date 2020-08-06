@@ -2,7 +2,7 @@
   "name": "bassim/super-expressive-php",
   "type": "project",
   "description": "",
-  "homepage": "http://random.studio",
+  "homepage": "https://github.com/bassim/super-expressive-php",
   "license": "MIT",
   "require": {
     "php": "^7.4"
