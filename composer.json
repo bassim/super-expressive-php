@@ -1,7 +1,7 @@
 {
     "name": "bassim/super-expressive-php",
     "type": "project",
-    "description": "A PHP port of <a href='https://github.com/francisrstokes/super-expressive'>https://github.com/francisrstokes/super-expressive</a>",
+    "description": "A PHP port of https://github.com/francisrstokes/super-expressive",
     "keywords": [
         "bassim",
         "regex",
