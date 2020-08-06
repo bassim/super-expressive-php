@@ -6,7 +6,7 @@
 
 [![PHP from Packagist](https://img.shields.io/packagist/php-v/bassim/super-expressive-php?style=flat-square)](https://packagist.org/packages/super-expressive-php)
 [![Build Status](https://img.shields.io/github/workflow/status/bassim/super-expressive-php/run-tests?label=tests&style=flat-square)](https://github.com/super-expressive-php/actions?query=workflow%3Arun-tests)
-[![Code Coverage](https://img.shields.io/coveralls/github/bassim/super-expressive-php.svg?style=flat-square)](https://coveralls.io/github/super-expressive-php)
+[![Coverage Status](https://coveralls.io/repos/github/bassim/super-expressive-php/badge.svg?branch=master)](https://coveralls.io/github/bassim/super-expressive-php?branch=master)
 [![Total Downloads](https://img.shields.io/packagist/dt/bassim/super-expressive-php.svg?style=flat-square)](https://packagist.org/packages/super-expressive-php)
 
 super-expressive-php is php library that allows you to build regular expressions in almost natural language. 
