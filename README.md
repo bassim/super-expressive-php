@@ -1,7 +1,5 @@
 # super-expressive-php
 
-# PHP Enum
-
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/bassim/super-expressive-php.svg?style=for-the-badge)](https://packagist.org/packages/super-expressive-php)
 [![License](https://img.shields.io/github/license/bassim/super-expressive-php?style=for-the-badge)](https://github.com/super-expressive-php/blob/master/LICENSE.md)
 ![Postcardware](https://img.shields.io/badge/Postcardware-%F0%9F%92%8C-197593?style=for-the-badge)
