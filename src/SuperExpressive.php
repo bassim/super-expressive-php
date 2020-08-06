@@ -393,7 +393,10 @@ final class SuperExpressive
 
     public function string(string $string): self
     {
-        assert($string !== '', '$string cannot be an empty string');
+        //assert($string !== '', '$string cannot be an empty string');
+        if ($string === '') {
+            throw new \AssertionError('$string cannot be an empty string');
+        }
 
         $n = clone $this->t->string;
         $elementValue = strlen($string) > 1 ? $this->escapeSpecial($string) : $string;
