@@ -14,7 +14,7 @@ final class SuperExpressiveTest extends TestCase
     {
         $this->expectException('AssertionError');
         $superExpressive = new SuperExpressive();
-        $this->assertEquals('/hello/g',
+        $this->assertEquals('//g',
             $superExpressive
                 ->allowMultipleMatches()
                 ->string('')
