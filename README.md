@@ -20,7 +20,7 @@ Regex is a very powerful tool, but its terse and cryptic vocabulary can make con
 That's where **Super Expressive PHP** comes in. It provides a programmatic and human readable way to create regular expressions. It's API uses the [fluent builder pattern](https://en.wikipedia.org/wiki/Fluent_interface), and is completely immutable. It's built to be discoverable and predictable:
 
 - properties and methods describe what they do in plain English
-- order matters! quantifiers are specified before the thing they change, just like in English (e.g. `SuperExpressive()::create()->exactly(5)->digit()`)
+- order matters! quantifiers are specified before the thing they change, just like in English (e.g. `SuperExpressive::create()->exactly(5)->digit()`)
 - if you make a mistake, you'll know how to fix it. SuperExpressive will guide you towards a fix if your expression is invalid
 - [subexpressions](#subexpressionexpr-opts) can be used to create meaningful, reusable components
 
@@ -33,7 +33,7 @@ For the complete API documentation, visit https://github.com/francisrstokes/supe
 The following example recognises and captures the value of a 16-bit hexadecimal number like `0xC0D3`.
 
 ```php
-$myRegex = (new SuperExpressive())
+$myRegex = SuperExpressive::create()
   ->startOfInput()
   ->optional()->string('0x')
   ->capture()
@@ -44,7 +44,7 @@ $myRegex = (new SuperExpressive())
     ->end()
   ->end()
   ->endOfInput
-  ->toRegex();
+  ->toRegexString();
 
 // Produces the following regular expression:
 /^(?:0x)?([A-Fa-f0-9]{4})$/
