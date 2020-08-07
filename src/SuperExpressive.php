@@ -88,43 +88,6 @@ final class SuperExpressive
         ];
     }
 
-    private static function isFusable(): \Closure
-    {
-        return function ($element) {
-            return in_array($element->type, ['range', 'char', 'anyOfChars']);
-        };
-    }
-
-    private static function fuseElements($elements)
-    {
-        [$fusables, $rest] = self::partition(self::isFusable(), $elements);
-
-        $callbackFused = static function ($n) {
-            if (in_array($n->type, ['char', 'anyOfChars'])) {
-                return $n->value;
-            }
-            return strtr('${el.value[0]}-${el.value[1]}', ['${el.value[0]}' => $n->value[0], '${el.value[1]}' => $n->value[1]]);
-        };
-        $fused = implode('', array_map($callbackFused, $fusables));
-
-        return [$fused, $rest];
-    }
-
-    private static function partition(\Closure $pred, $elements): array
-    {
-        $fusables = [];
-        $rest = [];
-        foreach ($elements as $element) {
-            if ($pred($element)) {
-                $fusables[] = $element;
-            } else {
-                $rest[] = $element;
-            }
-        }
-
-        return [$fusables, $rest];
-    }
-
     public function anyChar(): self
     {
         return $this->matchElement($this->t->anyChar);
@@ -197,13 +160,6 @@ final class SuperExpressive
         return sprintf('/%s/%s', $pattern, $flags);
     }
 
-    private function frameCreatingElement(\stdClass $typeFn): self
-    {
-        $newFrame = clone $this->createStackFrame($typeFn);
-        $this->state->stack[] = $newFrame;
-        return $this;
-    }
-
     public function anyOf(): self
     {
         return $this->frameCreatingElement($this->t->anyOf);
@@ -222,6 +178,274 @@ final class SuperExpressive
     public function assertNotAhead(): self
     {
         return $this->frameCreatingElement($this->t->assertNotAhead);
+    }
+
+    public function allowMultipleMatches(): self
+    {
+        $this->state->flags->g = true;
+        return $this;
+    }
+
+    public function lineByLine(): self
+    {
+        $this->state->flags->m = true;
+        return $this;
+    }
+
+    public function caseInsensitive(): self
+    {
+        $this->state->flags->i = true;
+        return $this;
+    }
+
+    public function sticky(): self
+    {
+        $this->state->flags->y = true;
+        return $this;
+    }
+
+    public function unicode(): self
+    {
+        $this->state->flags->u = true;
+        return $this;
+    }
+
+    public function singleLine(): self
+    {
+        $this->state->flags->s = true;
+        return $this;
+    }
+
+    public function string(string $string): self
+    {
+        //assert($string !== '', '$string cannot be an empty string');
+        if ($string === '') {
+            throw new \AssertionError('$string cannot be an empty string');
+        }
+
+        $n = clone $this->t->string;
+        $elementValue = strlen($string) > 1 ? $this->escapeSpecial($string) : $string;
+        $n->value = $elementValue;
+
+        $currentFrame = $this->getCurrentFrame();
+
+        $currentFrame->elements[] = $this->applyQuantifier($n);
+        return $this;
+    }
+
+    public function range(string $strA, string $strB): self
+    {
+        //TODO asserts
+
+        $n = clone $this->t->range;
+        $n->value = [$strA, $strB];
+
+        $currentFrame = $this->getCurrentFrame();
+        $currentFrame->elements[] = $this->applyQuantifier($n);
+
+
+        return $this;
+    }
+
+    public function anythingButRange($a, $b): self
+    {
+
+        //TODO asserts
+        $n = $this->t->anythingButRange;
+        $n->value = [$a, $b];
+
+        $currentFrame = $this->getCurrentFrame();
+        $currentFrame->elements[] = $this->applyQuantifier($n);
+        return $this;
+    }
+
+    public function optional(): self
+    {
+        return $this->quantifierElement('optional');
+    }
+
+    public function zeroOrMore(): self
+    {
+        return $this->quantifierElement('zeroOrMore');
+    }
+
+    public function zeroOrMoreLazy(): self
+    {
+        return $this->quantifierElement('zeroOrMoreLazy');
+    }
+
+    public function oneOrMore(): self
+    {
+        return $this->quantifierElement('oneOrMore');
+    }
+
+    public function oneOrMoreLazy(): self
+    {
+        return $this->quantifierElement('oneOrMoreLazy');
+    }
+
+    public function end(): self
+    {
+        $oldFrame = array_pop($this->state->stack);
+        $currentFrame = $this->getCurrentFrame();
+        $element = clone $currentFrame;
+        $element->type = $oldFrame->type;
+        $element->value = $oldFrame->elements;
+
+        $currentFrame->elements[] = $this->applyQuantifier($element);
+
+        return $this;
+    }
+
+    public function anyOfChars(string $string): self
+    {
+
+        $n = clone $this->t->anyOfChars;
+        $n->value = $this->escapeSpecial($string);
+
+        $currentFrame = $this->getCurrentFrame();
+
+        $currentFrame->elements[] = $this->applyQuantifier($n);
+
+        return $this;
+    }
+
+    public function anythingButChars(string $string): self
+    {
+        $n = clone $this->t->anythingButChars;
+        $n->value = $this->escapeSpecial($string);
+
+        $currentFrame = $this->getCurrentFrame();
+
+        $currentFrame->elements[] = $this->applyQuantifier($n);
+
+        return $this;
+
+    }
+
+    public function anythingButString(string $string): self
+    {
+        $n = clone $this->t->anythingButString;
+        $n->value = $this->escapeSpecial($string);
+
+        $currentFrame = $this->getCurrentFrame();
+
+        $currentFrame->elements[] = $this->applyQuantifier($n);
+
+        return $this;
+    }
+
+    public function exactly(int $int): self
+    {
+        $currentFrame = $this->getCurrentFrame();
+
+        $n = clone $this->t->exactly;
+        $n->value = $int;
+        $n->times = $int;
+
+        $currentFrame->quantifier = $n;
+
+        return $this;
+    }
+
+    public function atLeast(int $int): self
+    {
+        $currentFrame = $this->getCurrentFrame();
+
+        $n = clone $this->t->atLeast;
+        $n->value = $int;
+        $n->times = $int;
+
+        $currentFrame->quantifier = $n;
+
+        return $this;
+    }
+
+    public function subexpression(SuperExpressive $expr, $opts = []): self
+    {
+        $options = $this->applySubexpressionDefaults($opts);
+        $exprNext = clone $expr;
+        $additionalCaptureGroups = 0;
+
+        $exprFrame = $exprNext->getCurrentFrame();
+        $that = $this;
+        $cb = static function ($e) use ($options, $that, &$additionalCaptureGroups) {
+            $that->mergeSubexpression($e, $options, $that, $additionalCaptureGroups++);
+        };
+        $exprFrame->elements = array_map($cb, $exprFrame->elements);
+
+        $this->state->totalCaptureGroups += $additionalCaptureGroups;
+
+        if (!$options->ignoreFlags) {
+            //todo
+//            Object . entries(exprNext . state . flags) .forEach(([flagName, enabled]) => {
+//                next . state . flags[flagName] = enabled || next . state . flags[flagName];
+//            });
+        }
+
+        $currentFrame = $this->getCurrentFrame();
+        $currentFrame->elements[] = $this->applyQuantifier($this->t->subexpression($exprFrame->elements));
+
+        return $this;
+    }
+
+    public function startOfInput(): self
+    {
+        $this->state->hasDefinedStart = true;
+        $currentElementArray = &$this->getCurrentElementArray();
+        $currentElementArray[] = $this->t->startOfInput;
+        return $this;
+    }
+
+    public function capture(): self
+    {
+        $newFrame = $this->createStackFrame($this->t->capture);
+        $this->state->stack[] = $newFrame;
+        $this->state->totalCaptureGroups++;
+        return $this;
+    }
+
+    public function endOfInput(): self
+    {
+        $this->state->hasDefinedEnd = true;
+        $currentElementArray = &$this->getCurrentElementArray();
+        $currentElementArray[] = $this->t->endOfInput;
+        return $this;
+
+    }
+
+    public function between(int $x, int $y): self
+    {
+        $currentFrame = $this->getCurrentFrame();
+        if ($currentFrame->quantifier) {
+            throw new \RuntimeException('cannot quantify regular expression with "between" because it\'s already being quantified with "${currentFrame.quantifier.type}"');
+        }
+
+        $n = clone $this->t->between;
+        $n->times[0] = $x;
+        $n->times[1] = $y;
+        $currentFrame->quantifier = $n;
+        return $this;
+
+    }
+
+    public function betweenLazy(int $x, int $y): self
+    {
+        $currentFrame = $this->getCurrentFrame();
+        if ($currentFrame->quantifier) {
+            throw new \RuntimeException('cannot quantify regular expression with "between" because it\'s already being quantified with "${currentFrame.quantifier.type}"');
+        }
+
+        $n = clone $this->t->betweenLazy;
+        $n->times[0] = $x;
+        $n->times[1] = $y;
+        $currentFrame->quantifier = $n;
+        return $this;
+    }
+
+    public static function create(): self
+    {
+        return new SuperExpressive();
     }
 
     private function getRegexPatternAndFlags(): array
@@ -369,120 +593,10 @@ final class SuperExpressive
         }
     }
 
-    public function allowMultipleMatches(): self
+    private function frameCreatingElement(\stdClass $typeFn): self
     {
-        $this->state->flags->g = true;
-        return $this;
-    }
-
-    public function lineByLine(): self
-    {
-        $this->state->flags->m = true;
-        return $this;
-    }
-
-    public function caseInsensitive(): self
-    {
-        $this->state->flags->i = true;
-        return $this;
-    }
-
-    public function sticky(): self
-    {
-        $this->state->flags->y = true;
-        return $this;
-    }
-
-    public function unicode(): self
-    {
-        $this->state->flags->u = true;
-        return $this;
-    }
-
-    public function singleLine(): self
-    {
-        $this->state->flags->s = true;
-        return $this;
-    }
-
-    public function string(string $string): self
-    {
-        //assert($string !== '', '$string cannot be an empty string');
-        if ($string === '') {
-            throw new \AssertionError('$string cannot be an empty string');
-        }
-
-        $n = clone $this->t->string;
-        $elementValue = strlen($string) > 1 ? $this->escapeSpecial($string) : $string;
-        $n->value = $elementValue;
-
-        $currentFrame = $this->getCurrentFrame();
-
-        $currentFrame->elements[] = $this->applyQuantifier($n);
-        return $this;
-    }
-
-    public function range(string $strA, string $strB): self
-    {
-        //TODO asserts
-
-        $n = clone $this->t->range;
-        $n->value = [$strA, $strB];
-
-        $currentFrame = $this->getCurrentFrame();
-        $currentFrame->elements[] = $this->applyQuantifier($n);
-
-
-        return $this;
-    }
-
-    public function anythingButRange($a, $b): self
-    {
-
-        //TODO asserts
-        $n = $this->t->anythingButRange;
-        $n->value = [$a, $b];
-
-        $currentFrame = $this->getCurrentFrame();
-        $currentFrame->elements[] = $this->applyQuantifier($n);
-        return $this;
-    }
-
-    public function optional(): self
-    {
-        return $this->quantifierElement('optional');
-    }
-
-    public function zeroOrMore(): self
-    {
-        return $this->quantifierElement('zeroOrMore');
-    }
-
-    public function zeroOrMoreLazy(): self
-    {
-        return $this->quantifierElement('zeroOrMoreLazy');
-    }
-
-    public function oneOrMore(): self
-    {
-        return $this->quantifierElement('oneOrMore');
-    }
-
-    public function oneOrMoreLazy(): self
-    {
-        return $this->quantifierElement('oneOrMoreLazy');
-    }
-
-    public function end(): self
-    {
-        $oldFrame = array_pop($this->state->stack);
-        $currentFrame = $this->getCurrentFrame();
-        $element = clone $currentFrame;
-        $element->type = $oldFrame->type;
-        $element->value = $oldFrame->elements;
-
-        $currentFrame->elements[] = $this->applyQuantifier($element);
-
+        $newFrame = clone $this->createStackFrame($typeFn);
+        $this->state->stack[] = $newFrame;
         return $this;
     }
 
@@ -555,98 +669,6 @@ final class SuperExpressive
         return $this;
     }
 
-    public function anyOfChars(string $string): self
-    {
-
-        $n = clone $this->t->anyOfChars;
-        $n->value = $this->escapeSpecial($string);
-
-        $currentFrame = $this->getCurrentFrame();
-
-        $currentFrame->elements[] = $this->applyQuantifier($n);
-
-        return $this;
-    }
-
-    public function anythingButChars(string $string): self
-    {
-        $n = clone $this->t->anythingButChars;
-        $n->value = $this->escapeSpecial($string);
-
-        $currentFrame = $this->getCurrentFrame();
-
-        $currentFrame->elements[] = $this->applyQuantifier($n);
-
-        return $this;
-
-    }
-
-    public function anythingButString(string $string): self
-    {
-        $n = clone $this->t->anythingButString;
-        $n->value = $this->escapeSpecial($string);
-
-        $currentFrame = $this->getCurrentFrame();
-
-        $currentFrame->elements[] = $this->applyQuantifier($n);
-
-        return $this;
-    }
-
-    public function exactly(int $int): self
-    {
-        $currentFrame = $this->getCurrentFrame();
-
-        $n = clone $this->t->exactly;
-        $n->value = $int;
-        $n->times = $int;
-
-        $currentFrame->quantifier = $n;
-
-        return $this;
-    }
-
-    public function atLeast(int $int): self
-    {
-        $currentFrame = $this->getCurrentFrame();
-
-        $n = clone $this->t->atLeast;
-        $n->value = $int;
-        $n->times = $int;
-
-        $currentFrame->quantifier = $n;
-
-        return $this;
-    }
-
-    public function subexpression(SuperExpressive $expr, $opts = []): self
-    {
-        $options = $this->applySubexpressionDefaults($opts);
-        $exprNext = clone $expr;
-        $additionalCaptureGroups = 0;
-
-        $exprFrame = $exprNext->getCurrentFrame();
-        $that = $this;
-        $cb = static function ($e) use ($options, $that, &$additionalCaptureGroups) {
-            $that->mergeSubexpression($e, $options, $that, $additionalCaptureGroups++);
-        };
-        $exprFrame->elements = array_map($cb, $exprFrame->elements);
-
-        $this->state->totalCaptureGroups += $additionalCaptureGroups;
-
-        if (!$options->ignoreFlags) {
-            //todo
-//            Object . entries(exprNext . state . flags) .forEach(([flagName, enabled]) => {
-//                next . state . flags[flagName] = enabled || next . state . flags[flagName];
-//            });
-        }
-
-        $currentFrame = $this->getCurrentFrame();
-        $currentFrame->elements[] = $this->applyQuantifier($this->t->subexpression($exprFrame->elements));
-
-        return $this;
-    }
-
     private function mergeSubexpression($el, $options, $parent, $incrementCaptureGroups): \stdClass
     {
         $nextEl = clone $el;
@@ -662,32 +684,7 @@ final class SuperExpressive
         return $nextEl;
     }
 
-    public function startOfInput(): self
-    {
-        $this->state->hasDefinedStart = true;
-        $currentElementArray = &$this->getCurrentElementArray();
-        $currentElementArray[] = $this->t->startOfInput;
-        return $this;
-    }
-
-    public function capture(): self
-    {
-        $newFrame = $this->createStackFrame($this->t->capture);
-        $this->state->stack[] = $newFrame;
-        $this->state->totalCaptureGroups++;
-        return $this;
-    }
-
-    public function endOfInput(): self
-    {
-        $this->state->hasDefinedEnd = true;
-        $currentElementArray = &$this->getCurrentElementArray();
-        $currentElementArray[] = $this->t->endOfInput;
-        return $this;
-
-    }
-
-    private function applySubexpressionDefaults(array ...$expr)
+    private function applySubexpressionDefaults(array ...$expr): \stdClass
     {
         //  const out = { ...expr };
 //  out.namespace = ('namespace' in out) ? out.namespace : '';
@@ -707,33 +704,41 @@ final class SuperExpressive
         return $out;
     }
 
-    public function between(int $x, int $y): self
+    private static function isFusable(): \Closure
     {
-        $currentFrame = $this->getCurrentFrame();
-        if ($currentFrame->quantifier) {
-            throw new \RuntimeException('cannot quantify regular expression with "between" because it\'s already being quantified with "${currentFrame.quantifier.type}"');
-        }
-
-        $n = clone $this->t->between;
-        $n->times[0] = $x;
-        $n->times[1] = $y;
-        $currentFrame->quantifier = $n;
-        return $this;
-
+        return function ($element) {
+            return in_array($element->type, ['range', 'char', 'anyOfChars']);
+        };
     }
 
-    public function betweenLazy(int $x, int $y): self
+    private static function fuseElements($elements): array
     {
-        $currentFrame = $this->getCurrentFrame();
-        if ($currentFrame->quantifier) {
-            throw new \RuntimeException('cannot quantify regular expression with "between" because it\'s already being quantified with "${currentFrame.quantifier.type}"');
+        [$fusables, $rest] = self::partition(self::isFusable(), $elements);
+
+        $callbackFused = static function ($n) {
+            if (in_array($n->type, ['char', 'anyOfChars'])) {
+                return $n->value;
+            }
+            return strtr('${el.value[0]}-${el.value[1]}', ['${el.value[0]}' => $n->value[0], '${el.value[1]}' => $n->value[1]]);
+        };
+        $fused = implode('', array_map($callbackFused, $fusables));
+
+        return [$fused, $rest];
+    }
+
+    private static function partition(\Closure $pred, $elements): array
+    {
+        $fusables = [];
+        $rest = [];
+        foreach ($elements as $element) {
+            if ($pred($element)) {
+                $fusables[] = $element;
+            } else {
+                $rest[] = $element;
+            }
         }
 
-        $n = clone $this->t->betweenLazy;
-        $n->times[0] = $x;
-        $n->times[1] = $y;
-        $currentFrame->quantifier = $n;
-        return $this;
+        return [$fusables, $rest];
     }
 
 
