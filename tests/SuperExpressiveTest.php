@@ -202,6 +202,114 @@ final class SuperExpressiveTest extends TestCase
         );
 
     }
+
+    public function test_start_of_input(): void
+    {
+        $superExpressive = new SuperExpressive();
+        $this->assertEquals('/^/',
+            $superExpressive
+                ->startOfInput()
+                ->toRegexString()
+        );
+    }
+
+    public function test_end_of_input(): void
+    {
+        $superExpressive = new SuperExpressive();
+        $this->assertEquals('/$/',
+            $superExpressive
+                ->endOfInput()
+                ->toRegexString()
+        );
+    }
+
+    public function test_one_or_more_lazy(): void
+    {
+        $superExpressive = new SuperExpressive();
+        $this->assertEquals('/\w+?/',
+            $superExpressive
+                ->oneOrMoreLazy()->word()
+                ->toRegexString()
+        );
+    }
+
+    public function test_zero_or_more(): void
+    {
+        $superExpressive = new SuperExpressive();
+        $this->assertEquals('/\w*/',
+            $superExpressive
+                ->zeroOrMore()->word()
+                ->toRegexString()
+        );
+    }
+
+    public function test_zero_or_more_lazy(): void
+    {
+        $superExpressive = new SuperExpressive();
+        $this->assertEquals('/\w*?/',
+            $superExpressive
+                ->zeroOrMoreLazy()->word()
+                ->toRegexString()
+        );
+    }
+
+    public function test_between(): void
+    {
+        $superExpressive = new SuperExpressive();
+        $this->assertEquals('/\w{4,7}/',
+            $superExpressive
+                ->between(4,7)->word()
+                ->toRegexString()
+        );
+    }
+
+    public function test_between_lazy(): void
+    {
+        $superExpressive = new SuperExpressive();
+        $this->assertEquals('/\w{4,7}?/',
+            $superExpressive
+                ->betweenLazy(4,7)->word()
+                ->toRegexString()
+        );
+    }
+
+    public function test_not_ahead(): void
+    {
+        $superExpressive = new SuperExpressive();
+        $this->assertEquals('/(?![a-f])[0-9]/',
+            $superExpressive
+                ->assertNotAhead()
+                    ->range('a','f')
+                ->end()
+                ->range('0','9')
+                ->toRegexString()
+        );
+    }
+
+    public function test_ahead(): void
+    {
+        $superExpressive = new SuperExpressive();
+        $this->assertEquals('/(?=[a-f])[0-9]/',
+            $superExpressive
+                ->assertAhead()
+                ->range('a','f')
+                ->end()
+                ->range('0','9')
+                ->toRegexString()
+        );
+    }
+
+    // testRegexEquality(
+    //   'assertNotAhead',
+    //   /(?![a-f])[0-9]/,
+    //   SuperExpressive()
+    //     .assertNotAhead
+    //       .range('a', 'f')
+    //     .end()
+    //     .range('0', '9')
+    // );
+
+
 //
 //    public function test_sub_expression(): void
 //    {

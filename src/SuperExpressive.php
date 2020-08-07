@@ -56,17 +56,16 @@ final class SuperExpressive
 //            capture: deferredType('capture', { containsChildren: true }),
 //            subexpression: asType('subexpression', { containsChildren: true, quantifierRequiresGroup: true }),
 //            namedCapture: name => deferredType('namedCapture', { name, containsChildren: true }),
-//            group: deferredType('group', { containsChildren: true }),
-//            assertAhead: deferredType('assertAhead', { containsChildren: true }),
-//            assertNotAhead: deferredType('assertNotAhead', { containsChildren: true }),
+            'group' => $this->deferredType('group', ['containsChildren' => true]),
+            'assertAhead' => $this->deferredType('assertAhead', ['containsChildren' => true]),
+            'assertNotAhead' => $this->deferredType('assertNotAhead', ['containsChildren' => true]),
             'atLeast' => $this->deferredType('atLeast', ['containsChild' => true]),
-//            between: (x, y) => deferredType('between', { times: [x, y], containsChild: true }),
-//            betweenLazy: (x, y) => deferredType('betweenLazy', { times: [x, y], containsChild: true }),
-//            zeroOrMore: deferredType('zeroOrMore', { containsChild: true }),
-//            zeroOrMoreLazy: deferredType('zeroOrMoreLazy', { containsChild: true }),
+            'between' => $this->deferredType('between', ['containsChild' => true]),
+            'betweenLazy' => $this->deferredType('betweenLazy', ['containsChild' => true]),
+            'zeroOrMore' => $this->deferredType('zeroOrMore', ['containsChild' => true]),
+            'zeroOrMoreLazy' => $this->deferredType('zeroOrMoreLazy', ['containsChild' => true]),
             'oneOrMore' => $this->deferredType('oneOrMore', ['containsChild' => true]),
-            //oneOrMoreLazy: deferredType('oneOrMoreLazy', { containsChild: true }),
-
+            'oneOrMoreLazy' => $this->deferredType('oneOrMoreLazy', ['containsChild' => true]),
             'anyOf' => $this->deferredType('anyOf', ['containsChildren' => true]),
             'optional' => $this->deferredType('optional', ['containsChild' => true]),
             'exactly' => $this->deferredType('exactly', ['containsChild' => true]),
@@ -191,11 +190,6 @@ final class SuperExpressive
         return $this->matchElement($this->t->nullByte);
     }
 
-    public function anyOf(): self
-    {
-        return $this->frameCreatingElement($this->t->anyOf);
-    }
-
     public function toRegexString(): string
     {
         list($pattern, $flags) = $this->getRegexPatternAndFlags();
@@ -208,6 +202,26 @@ final class SuperExpressive
         $newFrame = clone $this->createStackFrame($typeFn);
         $this->state->stack[] = $newFrame;
         return $this;
+    }
+
+    public function anyOf(): self
+    {
+        return $this->frameCreatingElement($this->t->anyOf);
+    }
+
+    public function group(): self
+    {
+        return $this->frameCreatingElement($this->t->group);
+    }
+
+    public function assertAhead(): self
+    {
+        return $this->frameCreatingElement($this->t->assertAhead);
+    }
+
+    public function assertNotAhead(): self
+    {
+        return $this->frameCreatingElement($this->t->assertNotAhead);
     }
 
     private function getRegexPatternAndFlags(): array
@@ -294,7 +308,12 @@ final class SuperExpressive
             case 'exactly':
                 $inner = self::evaluate($el->value);
                 $withGroup = property_exists($el->value, 'quantifierRequiresGroup') && $el->value->quantifierRequiresGroup ? strtr('(?:${inner})', ['${inner}' => $inner]) : $inner;
-                return strtr('${withGroup}' . strtr(self::$quantifierTable[$el->type], ['${times}' => $el->times]), ['${withGroup}' => $withGroup]);
+                // todo, make smarter
+                if (is_array($el->times) && count($el->times) > 1) {
+                    return strtr('${withGroup}' . strtr(self::$quantifierTable[$el->type], ['${times[0]}' => $el->times[0], '${times[1]}' => $el->times[1]]), ['${withGroup}' => $withGroup]);
+                } else {
+                    return strtr('${withGroup}' . strtr(self::$quantifierTable[$el->type], ['${times}' => $el->times]), ['${withGroup}' => $withGroup]);
+                }
 
             case 'anythingButString':
                 $chars = str_split($el->value);
@@ -306,19 +325,19 @@ final class SuperExpressive
                 //.map(c => `[^${c}]`).join('');
                 return strtr('(?:${chars})', ['${chars}' => $chars]);
 
-//
-//      case 'assertAhead': {
-//    const evaluated = el.value.map(SuperExpressive[evaluate]).join('');
-//    return `(?=${evaluated})`;
-//}
-//
-//      case 'assertNotAhead': {
-//    const evaluated = el.value.map(SuperExpressive[evaluate]).join('');
-//    return `(?!${evaluated})`;
-//}
-//
-            case 'anyOf':
+            case 'assertAhead':
+                $evaluated = implode('', array_map(static function ($e) {
+                    return self::evaluate($e);
+                }, $el->value));// el.value.map(SuperExpressive[evaluate]).join('');
+                return strtr('(?=${evaluated})', ['${evaluated}' => $evaluated]);
 
+            case 'assertNotAhead':
+                $evaluated = implode('', array_map(static function ($e) {
+                    return self::evaluate($e);
+                }, $el->value));// el.value.map(SuperExpressive[evaluate]).join('');
+                return strtr('(?!${evaluated})', ['${evaluated}' => $evaluated]);
+
+            case 'anyOf':
                 [$fused, $rest] = self::fuseElements($el->value);
                 if (count($rest) < 1) {
                     return strtr('[${fused}]', ['${fused}' => $fused]);
@@ -600,69 +619,72 @@ final class SuperExpressive
         return $this;
     }
 
-    /*
-       subexpression(expr, opts = {}) {
-    assert(expr instanceof SuperExpressive, `expr must be a SuperExpressive instance`);
-    assert(
-      expr.state.stack.length === 1,
-      'Cannot call subexpression with a not yet fully specified regex object.' +
-      `\n(Try adding a .end() call to match the "${expr[getCurrentFrame]().type.type}" on the subexpression)\n`
-    );
-
-
-    const options = applySubexpressionDefaults(opts);
-
-    const exprNext = expr[clone]();
-    const next = this[clone]();
-    let additionalCaptureGroups = 0;
-
-    const exprFrame = exprNext[getCurrentFrame]();
-    exprFrame.elements = exprFrame.elements.map(e =>
-      SuperExpressive[mergeSubexpression](
-        e,
-        options,
-        next,
-        () => additionalCaptureGroups++
-      )
-    );
-
-    next.state.totalCaptureGroups += additionalCaptureGroups;
-
-    if (!options.ignoreFlags) {
-      Object.entries(exprNext.state.flags).forEach(([flagName, enabled]) => {
-        next.state.flags[flagName] = enabled || next.state.flags[flagName];
-      });
-    }
-
-    const currentFrame = next[getCurrentFrame]();
-    currentFrame.elements.push(next[applyQuantifier](t.subexpression(exprFrame.elements)));
-
-    return next;
-  }
-     */
     public function subexpression(SuperExpressive $expr, $opts = []): self
     {
         $options = $this->applySubexpressionDefaults($opts);
         $exprNext = clone $expr;
         $additionalCaptureGroups = 0;
 
+        $exprFrame = $exprNext->getCurrentFrame();
+        $that = $this;
+        $cb = static function ($e) use ($options, $that, &$additionalCaptureGroups) {
+            $that->mergeSubexpression($e, $options, $that, $additionalCaptureGroups++);
+        };
+        $exprFrame->elements = array_map($cb, $exprFrame->elements);
+
+        $this->state->totalCaptureGroups += $additionalCaptureGroups;
+
+        if (!$options->ignoreFlags) {
+            //todo
+//            Object . entries(exprNext . state . flags) .forEach(([flagName, enabled]) => {
+//                next . state . flags[flagName] = enabled || next . state . flags[flagName];
+//            });
+        }
+
+        $currentFrame = $this->getCurrentFrame();
+        $currentFrame->elements[] = $this->applyQuantifier($this->t->subexpression($exprFrame->elements));
 
         return $this;
     }
 
+    private function mergeSubexpression($el, $options, $parent, $incrementCaptureGroups): \stdClass
+    {
+        $nextEl = clone $el;
+
+
+        if ($nextEl->type === 'endOfInput') {
+            if ($options->ignoreStartAndEnd) {
+                return $this->t->noop;
+            }
+            $parent->state->hasDefinedEnd = true;
+        }
+
+        return $nextEl;
+    }
+
     public function startOfInput(): self
     {
+        $this->state->hasDefinedStart = true;
+        $currentElementArray = &$this->getCurrentElementArray();
+        $currentElementArray[] = $this->t->startOfInput;
         return $this;
     }
 
     public function capture(): self
     {
+        $newFrame = $this->createStackFrame($this->t->capture);
+        $this->state->stack[] = $newFrame;
+        $this->state->totalCaptureGroups++;
         return $this;
     }
 
     public function endOfInput(): self
     {
+        $this->state->hasDefinedEnd = true;
+        $currentElementArray = &$this->getCurrentElementArray();
+        $currentElementArray[] = $this->t->endOfInput;
         return $this;
+
     }
 
     private function applySubexpressionDefaults(array ...$expr)
@@ -683,6 +705,35 @@ final class SuperExpressive
         $out->ignoreStartAndEnd = true;
         //todo pick up args
         return $out;
+    }
+
+    public function between(int $x, int $y): self
+    {
+        $currentFrame = $this->getCurrentFrame();
+        if ($currentFrame->quantifier) {
+            throw new \RuntimeException('cannot quantify regular expression with "between" because it\'s already being quantified with "${currentFrame.quantifier.type}"');
+        }
+
+        $n = clone $this->t->between;
+        $n->times[0] = $x;
+        $n->times[1] = $y;
+        $currentFrame->quantifier = $n;
+        return $this;
+
+    }
+
+    public function betweenLazy(int $x, int $y): self
+    {
+        $currentFrame = $this->getCurrentFrame();
+        if ($currentFrame->quantifier) {
+            throw new \RuntimeException('cannot quantify regular expression with "between" because it\'s already being quantified with "${currentFrame.quantifier.type}"');
+        }
+
+        $n = clone $this->t->betweenLazy;
+        $n->times[0] = $x;
+        $n->times[1] = $y;
+        $currentFrame->quantifier = $n;
+        return $this;
     }
 
 
