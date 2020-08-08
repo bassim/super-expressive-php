@@ -398,7 +398,10 @@ final class SuperExpressive
         }
 
         $currentFrame = $this->getCurrentFrame();
-        $currentFrame->elements[] = $this->applyQuantifier($this->t->subexpression($exprFrame->elements));
+
+        $e = $this->t->subexpression;
+        $e->value = $exprFrame->elements;
+        $currentFrame->elements[] = $this->applyQuantifier($e);
 
         return $this;
     }
