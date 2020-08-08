@@ -301,8 +301,11 @@ final class SuperExpressive
         $element = clone $currentFrame;
         $element->type = $oldFrame->type;
         $element->value = $oldFrame->elements;
-        $element->metadata = $oldFrame->metadata;
-
+        if (property_exists($oldFrame, 'metadata')) {
+            $element->metadata = $oldFrame->metadata;
+        } else {
+            $element->metadata = null;
+        }
         $currentFrame->elements[] = $this->applyQuantifier($element);
 
         return $this;
@@ -463,6 +466,14 @@ final class SuperExpressive
         return $this;
 
     }
+
+    public function backreference(int $int):self
+    {
+        $e = $this->t->backreference;
+        $e->metadata = $int;
+        return $this->matchElement($e);
+    }
+
 
     public static function create(): self
     {
@@ -767,6 +778,5 @@ final class SuperExpressive
 
         return [$fusables, $rest];
     }
-
 
 }

@@ -339,6 +339,20 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
+    public function test_back_reference(): void
+    {
+        $this->assertEquals('/(hello \w\!)\1/',
+            SuperExpressive::create()
+                ->capture()
+                    ->string('hello ')
+                    ->word()
+                    ->char('!')
+                ->end()
+                ->backreference(1)
+                ->toRegexString()
+        );
+    }
+
 
 //    public function test_sub_expression(): void
 //    {
@@ -353,26 +367,26 @@ final class SuperExpressiveTest extends TestCase
 //        );
 //    }
 
-//    public function test_regex_string(): void
-//    {
-//
-//        $this->assertEquals('/^(?:0x)?([A-Fa-f0-9]{4})$/gm',
-//            SuperExpressive::create()
-//                ->allowMultipleMatches()
-//                ->lineByLine()
-//                ->startOfInput()
-//                ->optional()->string('0x')
-//                ->capture()
-//                ->exactly(4)->anyOf()
-//                ->range('A','F')
-//                ->range('a','f')
-//                ->range('0','9')
-//                ->end()
-//                ->end()
-//                ->endOfInput()
-//                ->toRegexString()
-//        );
-//
-//    }
+    /*public function test_regex_string(): void
+    {
+
+        $this->assertEquals('/^(?:0x)?([A-Fa-f0-9]{4})$/gm',
+            SuperExpressive::create()
+                ->allowMultipleMatches()
+                ->lineByLine()
+                ->startOfInput()
+                ->optional()->string('0x')
+                ->capture()
+                ->exactly(4)->anyOf()
+                ->range('A','F')
+                ->range('a','f')
+                ->range('0','9')
+                ->end()
+                ->end()
+                ->endOfInput()
+                ->toRegexString()
+        );
+
+   }*/
 
 }
