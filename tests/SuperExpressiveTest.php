@@ -339,13 +339,13 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-//
+
 //    public function test_sub_expression(): void
 //    {
-//        $fiveDigits = (new SuperExpressive())->exactly(5)->digit();
+//        $fiveDigits = SuperExpressive::create()->exactly(5)->digit();
 //
 //        $this->assertEquals('/[a-z]+.{3,}\d{5}/',
-//            $superExpressive
+//            SuperExpressive::create()
 //                ->oneOrMore()->range('a','z')
 //                ->atLeast(3)->anyChar()
 //                ->subexpression($fiveDigits)
@@ -353,27 +353,26 @@ final class SuperExpressiveTest extends TestCase
 //        );
 //    }
 
-
-    public function test_regex_string(): void
-    {
-
-        $this->assertEquals('/^(?:0x)?([A-Fa-f0-9]{4})$/gm',
-            SuperExpressive::create()
-                ->allowMultipleMatches()
-                ->lineByLine()
-                ->startOfInput()
-                ->optional()->string('0x')
-                ->capture()
-                ->exactly(4)->anyOf()
-                ->range('A','F')
-                ->range('a','f')
-                ->range('0','9')
-                ->end()
-                ->end()
-                ->endOfInput()
-                ->toRegexString()
-        );
-
-    }
+//    public function test_regex_string(): void
+//    {
+//
+//        $this->assertEquals('/^(?:0x)?([A-Fa-f0-9]{4})$/gm',
+//            SuperExpressive::create()
+//                ->allowMultipleMatches()
+//                ->lineByLine()
+//                ->startOfInput()
+//                ->optional()->string('0x')
+//                ->capture()
+//                ->exactly(4)->anyOf()
+//                ->range('A','F')
+//                ->range('a','f')
+//                ->range('0','9')
+//                ->end()
+//                ->end()
+//                ->endOfInput()
+//                ->toRegexString()
+//        );
+//
+//    }
 
 }
