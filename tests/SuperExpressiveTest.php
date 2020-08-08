@@ -265,7 +265,6 @@ final class SuperExpressiveTest extends TestCase
 
     public function test_between_lazy(): void
     {
-
         $this->assertEquals('/\w{4,7}?/',
             SuperExpressive::create()
                 ->betweenLazy(4,7)->word()
@@ -275,7 +274,6 @@ final class SuperExpressiveTest extends TestCase
 
     public function test_not_ahead(): void
     {
-
         $this->assertEquals('/(?![a-f])[0-9]/',
             SuperExpressive::create()
                 ->assertNotAhead()
@@ -299,16 +297,47 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    // testRegexEquality(
-    //   'assertNotAhead',
-    //   /(?![a-f])[0-9]/,
-    //   SuperExpressive()
-    //     .assertNotAhead
-    //       .range('a', 'f')
-    //     .end()
-    //     .range('0', '9')
-    // );
+    public function test_group(): void
+    {
 
+        $this->assertEquals('/(?:hello \w\!)/',
+            SuperExpressive::create()
+                ->group()
+                    ->string('hello ')
+                    ->word()
+                    ->char('!')
+                ->end()
+                ->toRegexString()
+        );
+    }
+
+    public function test_capture(): void
+    {
+
+        $this->assertEquals('/(hello \w\!)/',
+            SuperExpressive::create()
+                ->capture()
+                ->string('hello ')
+                ->word()
+                ->char('!')
+                ->end()
+                ->toRegexString()
+        );
+    }
+
+    public function test_named_capture(): void
+    {
+
+        $this->assertEquals('/(?<this_is_the_name>hello \w\!)/',
+            SuperExpressive::create()
+                ->namedCapture('this_is_the_name')
+                ->string('hello ')
+                ->word()
+                ->char('!')
+                ->end()
+                ->toRegexString()
+        );
+    }
 
 //
 //    public function test_sub_expression(): void
@@ -325,26 +354,26 @@ final class SuperExpressiveTest extends TestCase
 //    }
 
 
-//    public function test_regex_string(): void
-//    {
-//
-//        $this->assertEquals('/^(?:0x)?([A-Fa-f0-9]{4})$/gm',
-//            $superExpressive
-//                ->allowMultipleMatches()
-//                ->lineByLine()
-//                ->startOfInput()
-//                ->optional()->string('0x')
-//                ->capture()
-//                ->exactly(4)->anyOf()
-//                ->range('A','F')
-//                ->range('a','f')
-//                ->range('0','9')
-//                ->end()
-//                ->end()
-//                ->endOfInput()
-//                ->toRegexString()
-//        );
-//
-//    }
+    public function test_regex_string(): void
+    {
+
+        $this->assertEquals('/^(?:0x)?([A-Fa-f0-9]{4})$/gm',
+            SuperExpressive::create()
+                ->allowMultipleMatches()
+                ->lineByLine()
+                ->startOfInput()
+                ->optional()->string('0x')
+                ->capture()
+                ->exactly(4)->anyOf()
+                ->range('A','F')
+                ->range('a','f')
+                ->range('0','9')
+                ->end()
+                ->end()
+                ->endOfInput()
+                ->toRegexString()
+        );
+
+    }
 
 }

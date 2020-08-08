@@ -50,12 +50,11 @@ final class SuperExpressive
             'char' => $this->asType('char')(),
             'range' => $this->asType('range')(),
             'string' => $this->asType('string')(),
-
-//            namedBackreference: name => deferredType('namedBackreference', { name }),
-//            backreference: index => deferredType('backreference', { index }),
-//            capture: deferredType('capture', { containsChildren: true }),
-//            subexpression: asType('subexpression', { containsChildren: true, quantifierRequiresGroup: true }),
-//            namedCapture: name => deferredType('namedCapture', { name, containsChildren: true }),
+            'namedBackreference' => $this->deferredType('namedBackreference'),
+            'backreference' => $this->deferredType('backreference'),
+            'capture' => $this->deferredType('capture', ['containsChildren' => true]),
+            'subexpression' => $this->asType('subexpression', ['containsChildren' => true, 'quantifierRequiresGroup' => true]),
+            'namedCapture' => $this->deferredType('namedCapture', ['containsChildren' => true]),
             'group' => $this->deferredType('group', ['containsChildren' => true]),
             'assertAhead' => $this->deferredType('assertAhead', ['containsChildren' => true]),
             'assertNotAhead' => $this->deferredType('assertNotAhead', ['containsChildren' => true]),
@@ -233,6 +232,17 @@ final class SuperExpressive
         return $this;
     }
 
+    public function char(string $string): self
+    {
+        $n = clone $this->t->char;
+        $elementValue = $this->escapeSpecial($string);
+        $n->value = $elementValue;
+        $currentFrame = $this->getCurrentFrame();
+
+        $currentFrame->elements[] = $this->applyQuantifier($n);
+        return $this;
+    }
+
     public function range(string $strA, string $strB): self
     {
         //TODO asserts
@@ -291,6 +301,7 @@ final class SuperExpressive
         $element = clone $currentFrame;
         $element->type = $oldFrame->type;
         $element->value = $oldFrame->elements;
+        $element->metadata = $oldFrame->metadata;
 
         $currentFrame->elements[] = $this->applyQuantifier($element);
 
@@ -443,6 +454,16 @@ final class SuperExpressive
         return $this;
     }
 
+    public function namedCapture(string $string): self
+    {
+        $newFrame = $this->createStackFrame($this->t->namedCapture);
+        $newFrame->metadata = $string;
+        $this->state->stack[] = $newFrame;
+        $this->state->totalCaptureGroups++;
+        return $this;
+
+    }
+
     public static function create(): self
     {
         return new SuperExpressive();
@@ -546,19 +567,18 @@ final class SuperExpressive
                 };
                 $chars = array_map($callback, $chars);
                 $chars = implode('', $chars);
-                //.map(c => `[^${c}]`).join('');
                 return strtr('(?:${chars})', ['${chars}' => $chars]);
 
             case 'assertAhead':
                 $evaluated = implode('', array_map(static function ($e) {
                     return self::evaluate($e);
-                }, $el->value));// el.value.map(SuperExpressive[evaluate]).join('');
+                }, $el->value));
                 return strtr('(?=${evaluated})', ['${evaluated}' => $evaluated]);
 
             case 'assertNotAhead':
                 $evaluated = implode('', array_map(static function ($e) {
                     return self::evaluate($e);
-                }, $el->value));// el.value.map(SuperExpressive[evaluate]).join('');
+                }, $el->value));
                 return strtr('(?!${evaluated})', ['${evaluated}' => $evaluated]);
 
             case 'anyOf':
@@ -572,20 +592,27 @@ final class SuperExpressive
                 }, $rest);// $rest.map(SuperExpressive[evaluate]);
                 $separator = (count($evaluatedRest) > 0 && strlen($fused) > 0) ? '|' : '';
                 return '(?:' . implode('|', $evaluatedRest) . $separator . ('' !== $fused ? '[' . $fused . ']' : '') . ')';
-//      case 'capture': {
-//    const evaluated = el.value.map(SuperExpressive[evaluate]);
-//    return `(${evaluated.join('')})`;
-//}
-//
-//      case 'namedCapture': {
-//    const evaluated = el.value.map(SuperExpressive[evaluate]);
-//    return `(?<${el.metadata}>${evaluated.join('')})`;
-//}
-//
-//      case 'group': {
-//    const evaluated = el.value.map(SuperExpressive[evaluate]);
-//    return `(?:${evaluated.join('')})`;
-//}
+
+
+            case 'capture':
+                $evaluated = implode('', array_map(static function ($e) {
+                    return self::evaluate($e);
+                }, $el->value));
+                return strtr('(${evaluated})', ['${evaluated}' => $evaluated]);
+
+
+            case 'namedCapture':
+                $evaluated = implode('', array_map(static function ($e) {
+                    return self::evaluate($e);
+                }, $el->value));
+                return strtr('(?<${el.metadata}>${evaluated})', ['${el.metadata}' => $el->metadata, '${evaluated}' => $evaluated]);
+
+
+            case 'group':
+                $evaluated = implode('', array_map(static function ($e) {
+                    return self::evaluate($e);
+                }, $el->value));
+                return strtr('(?:${evaluated})', ['${evaluated}' => $evaluated]);
 
             default:
                 throw new \RuntimeException('Can\'t process unsupported element type: ' . $el->type . '');
