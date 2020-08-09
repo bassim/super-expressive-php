@@ -49,11 +49,11 @@ final class SuperExpressive
             'anythingButRange' => $this->asType('anythingButRange')(),
             'char' => $this->asType('char')(),
             'range' => $this->asType('range')(),
-            'string' => $this->asType('string')(),
+            'string' => $this->asType('string', ['quantifierRequiresGroup' => true])(),
             'namedBackreference' => $this->deferredType('namedBackreference'),
             'backreference' => $this->deferredType('backreference'),
             'capture' => $this->deferredType('capture', ['containsChildren' => true]),
-            'subexpression' => $this->asType('subexpression', ['containsChildren' => true, 'quantifierRequiresGroup' => true]),
+            'subexpression' => $this->asType('subexpression', ['containsChildren' => true, 'quantifierRequiresGroup' => true])(),
             'namedCapture' => $this->deferredType('namedCapture', ['containsChildren' => true]),
             'group' => $this->deferredType('group', ['containsChildren' => true]),
             'assertAhead' => $this->deferredType('assertAhead', ['containsChildren' => true]),
@@ -378,13 +378,14 @@ final class SuperExpressive
     public function subexpression(SuperExpressive $expr, $opts = []): self
     {
         $options = $this->applySubexpressionDefaults($opts);
+
         $exprNext = clone $expr;
         $additionalCaptureGroups = 0;
 
         $exprFrame = $exprNext->getCurrentFrame();
         $that = $this;
         $cb = static function ($e) use ($options, $that, &$additionalCaptureGroups) {
-            $that->mergeSubexpression($e, $options, $that, $additionalCaptureGroups++);
+            return $that->mergeSubexpression($e, $options, $that, $additionalCaptureGroups);
         };
         $exprFrame->elements = array_map($cb, $exprFrame->elements);
 
@@ -477,6 +478,12 @@ final class SuperExpressive
         return $this->matchElement($e);
     }
 
+    public function namedBackreference(string $string): self
+    {
+        $e = $this->t->namedBackreference;
+        $e->metadata = $string;
+        return $this->matchElement($e);
+    }
 
     public static function create(): self
     {
@@ -549,6 +556,10 @@ final class SuperExpressive
                 return strtr('\\k<${el.metadata}>', ['${el.metadata}' => $el->metadata]);
             case 'backreference':
                 return strtr('\\${el.metadata}', ['${el.metadata}' => $el->metadata]);
+            case 'subexpression':
+                return implode('', array_map(static function ($e) {
+                    return self::evaluate($e);
+                }, $el->value));//el.value.map(SuperExpressive[evaluate]).join('');
 
             case 'optional':
             case 'zeroOrMore':
@@ -678,7 +689,7 @@ final class SuperExpressive
     private function asType(string $type, array $options = null): \Closure
     {
         $f = function () use ($type, $options) {
-            return (object)['type' => $type, 'options' => $options];
+            return null !== $options ? (object)array_merge(['type' => $type], $options) : (object)['type' => $type];
         };
         return $f;
     }
@@ -714,6 +725,45 @@ final class SuperExpressive
     {
         $nextEl = clone $el;
 
+        if ($nextEl->type === 'backreference') {
+            $nextEl->index += $parent->state->totalCaptureGroups;
+        }
+
+        if ($nextEl->type === 'capture') {
+            $incrementCaptureGroups++;
+        }
+
+
+        if ($nextEl->type === 'namedCapture') {
+            $groupName = $options->namespace
+                ? '${options.namespace}${nextEl.name}'
+                : $nextEl->name;
+
+            $parent->trackNamedGroup($groupName);
+            $nextEl->name = $groupName;
+        }
+
+
+        if ($nextEl->type === 'namedBackreference') {
+            $nextEl->name = $options->namespace
+                ? strtr('${options.namespace}${nextEl.name}', ['${options.namespace}' => $options->namespace, '${nextEl.name}' => $nextEl->name])
+                : $nextEl->name;
+        }
+
+
+        if ($nextEl->containsChile) {
+            $nextEl->value = self::mergeSubexpression($nextEl->value, $options, $parent, $incrementCaptureGroups);
+        } else if ($nextEl->containsChildren) {
+            $nextEl->value = array_map(static function ($e) use ($options, $parent, $incrementCaptureGroups) {
+                return self::mergeSubexpression($e, $options, $parent, $incrementCaptureGroups);
+            }, $nextEl->value);
+        }
+        if ($nextEl->type === 'startOfInput') {
+            if ($options->ignoreStartAndEnd) {
+                return $this->t->noop;
+            }
+            $parent->state->hasDefinedEnd = true;
+        }
 
         if ($nextEl->type === 'endOfInput') {
             if ($options->ignoreStartAndEnd) {
@@ -721,11 +771,10 @@ final class SuperExpressive
             }
             $parent->state->hasDefinedEnd = true;
         }
-
         return $nextEl;
     }
 
-    private function applySubexpressionDefaults(array ...$expr): \stdClass
+    private function applySubexpressionDefaults(array $expr): \stdClass
     {
         //  const out = { ...expr };
 //  out.namespace = ('namespace' in out) ? out.namespace : '';

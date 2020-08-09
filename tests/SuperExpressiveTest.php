@@ -353,21 +353,52 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
+    public function test_named_back_reference(): void
+    {
+        $this->assertEquals('/(?<this_is_the_name>hello \w\!)\k<this_is_the_name>/',
+            SuperExpressive::create()
+                ->namedCapture('this_is_the_name')
+                ->string('hello ')
+                ->word()
+                ->char('!')
+                ->end()
+                ->namedBackreference('this_is_the_name')
+                ->toRegexString()
+        );
+    }
 
-//    public function test_sub_expression(): void
-//    {
-//        $fiveDigits = SuperExpressive::create()->exactly(5)->digit();
-//
-//        $this->assertEquals('/[a-z]+.{3,}\d{5}/',
-//            SuperExpressive::create()
-//                ->oneOrMore()->range('a','z')
-//                ->atLeast(3)->anyChar()
-//                ->subexpression($fiveDigits)
-//                ->toRegexString()
-//        );
-//    }
+    public function test_simple_subexpression(): void
+    {
+        $simpleSubExpression = SuperExpressive::create()
+            ->string('hello')
+            ->anyChar()
+            ->string('world');
 
-    /*public function test_regex_string(): void
+        $this->assertEquals('/^\d{3,}hello.world[0-9]$/',
+            SuperExpressive::create()
+                ->startOfInput()
+                ->atLeast(3)->digit()
+                ->subexpression($simpleSubExpression)
+                ->range('0','9')
+                ->endOfInput()
+                ->toRegexString()
+        );
+    }
+
+    public function test_sub_expression(): void
+    {
+        $fiveDigits = SuperExpressive::create()->exactly(5)->digit();
+
+        $this->assertEquals('/[a-z]+.{3,}\d{5}/',
+            SuperExpressive::create()
+                ->oneOrMore()->range('a','z')
+                ->atLeast(3)->anyChar()
+                ->subexpression($fiveDigits)
+                ->toRegexString()
+        );
+    }
+
+    public function test_regex_string(): void
     {
 
         $this->assertEquals('/^(?:0x)?([A-Fa-f0-9]{4})$/gm',
@@ -378,15 +409,15 @@ final class SuperExpressiveTest extends TestCase
                 ->optional()->string('0x')
                 ->capture()
                 ->exactly(4)->anyOf()
-                ->range('A','F')
-                ->range('a','f')
-                ->range('0','9')
+                ->range('A', 'F')
+                ->range('a', 'f')
+                ->range('0', '9')
                 ->end()
                 ->end()
                 ->endOfInput()
                 ->toRegexString()
         );
 
-   }*/
+    }
 
 }
