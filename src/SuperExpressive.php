@@ -751,13 +751,14 @@ final class SuperExpressive
         }
 
 
-        if ($nextEl->containsChildren) {
+        if (property_exists($nextEl, 'containsChild') && $nextEl->containsChild) {
             $nextEl->value = self::mergeSubexpression($nextEl->value, $options, $parent, $incrementCaptureGroups);
-        } else if ($nextEl->containsChildren) {
+        } else if (property_exists($nextEl, 'containsChildren') && $nextEl->containsChildren) {
             $nextEl->value = array_map(static function ($e) use ($options, $parent, $incrementCaptureGroups) {
                 return self::mergeSubexpression($e, $options, $parent, $incrementCaptureGroups);
             }, $nextEl->value);
         }
+
         if ($nextEl->type === 'startOfInput') {
             if ($options->ignoreStartAndEnd) {
                 return $this->t->noop;
