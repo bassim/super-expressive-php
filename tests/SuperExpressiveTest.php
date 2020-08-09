@@ -9,12 +9,12 @@ use PHPUnit\Framework\TestCase;
 
 final class SuperExpressiveTest extends TestCase
 {
-
-    public function test_empty_string_in_string(): void
+    public function testErrorEmptyStringInString(): void
     {
         $this->expectException('AssertionError');
 
-        $this->assertEquals('//g',
+        static::assertSame(
+            '//g',
             SuperExpressive::create()
                 ->allowMultipleMatches()
                 ->string('')
@@ -22,10 +22,55 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_allow_multiple_matches(): void
+    public function testErrorCharWithMultipleChars(): void
     {
+        try {
+            SuperExpressive::create()->char('hello');
+        } catch (\AssertionError $assertionError) {
+            static::assertSame('char() can only be called with a single character (got hello)', $assertionError->getMessage());
+        }
+    }
 
-        $this->assertEquals('/hello/g',
+    public function testErrorEndWhenCalledWithNoStack(): void
+    {
+        try {
+            SuperExpressive::create()->end();
+        } catch (\AssertionError $assertionError) {
+            static::assertSame('Cannot call end while building the root expression.', $assertionError->getMessage());
+        }
+    }
+
+    public function testErrorWrongRange(): void
+    {
+        try {
+            SuperExpressive::create()->range('z', 'a');
+        } catch (\AssertionError $assertionError) {
+            static::assertSame('a must have a smaller character value than b (a = 122, b = 97)', $assertionError->getMessage());
+        }
+
+        try {
+            SuperExpressive::create()->range('1', '0');
+        } catch (\AssertionError $assertionError) {
+            static::assertSame('a must have a smaller character value than b (a = 49, b = 48)', $assertionError->getMessage());
+        }
+    }
+
+    public function testErrorDoubleBetween(): void
+    {
+        $this->expectException('RuntimeException');
+        static::assertSame(
+            '',
+            SuperExpressive::create()
+                ->between(0, 1)
+                ->between(2, 3)
+                ->toRegexString()
+        );
+    }
+
+    public function testAllowMultipleMatches(): void
+    {
+        static::assertSame(
+            '/hello/g',
             SuperExpressive::create()
                 ->allowMultipleMatches()
                 ->string('hello')
@@ -33,10 +78,10 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_line_by_line(): void
+    public function testLineByLine(): void
     {
-
-        $this->assertEquals('/\^hello\$/m',
+        static::assertSame(
+            '/\^hello\$/m',
             SuperExpressive::create()
                 ->lineByLine()
                 ->string('^hello$')
@@ -44,10 +89,10 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_case_insensitive(): void
+    public function testCaseInsensitive(): void
     {
-
-        $this->assertEquals('/HELLO/i',
+        static::assertSame(
+            '/HELLO/i',
             SuperExpressive::create()
                 ->caseInsensitive()
                 ->string('HELLO')
@@ -55,20 +100,20 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_null_byte(): void
+    public function testNullByte(): void
     {
-
-        $this->assertEquals('/\0/',
+        static::assertSame(
+            '/\0/',
             SuperExpressive::create()
                 ->nullByte()
                 ->toRegexString()
         );
     }
 
-    public function test_single_line(): void
+    public function testSingleLine(): void
     {
-
-        $this->assertEquals('/hello.world/s',
+        static::assertSame(
+            '/hello.world/s',
             SuperExpressive::create()
                 ->singleLine()
                 ->string('hello')
@@ -78,10 +123,10 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_word_boundary(): void
+    public function testWordBoundary(): void
     {
-
-        $this->assertEquals('/\d\b/',
+        static::assertSame(
+            '/\d\b/',
             SuperExpressive::create()
                 ->digit()
                 ->wordBoundary()
@@ -89,10 +134,10 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_non_word_boundary(): void
+    public function testNonWordBoundary(): void
     {
-
-        $this->assertEquals('/\d\B/',
+        static::assertSame(
+            '/\d\B/',
             SuperExpressive::create()
                 ->digit()
                 ->nonWordBoundary()
@@ -100,79 +145,74 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_newline(): void
+    public function testNewline(): void
     {
-
-        $this->assertEquals('/\n/',
+        static::assertSame(
+            '/\n/',
             SuperExpressive::create()
                 ->newline()
                 ->toRegexString()
         );
     }
 
-
-    public function test_anything_but_range(): void
+    public function testAnythingButRange(): void
     {
-
-        $this->assertEquals('/[^0-9]/',
+        static::assertSame(
+            '/[^0-9]/',
             SuperExpressive::create()
                 ->anythingButRange(0, 9)
                 ->toRegexString()
         );
     }
 
-    public function test_any_of(): void
+    public function testAnyOf(): void
     {
-
-        $this->assertEquals('/(?:XXX|[a-f0-9])/',
+        static::assertSame(
+            '/(?:XXX|[a-f0-9])/',
             SuperExpressive::create()
                 ->anyOf()
-                    ->range('a','f')
-                    ->range('0','9')
-                    ->string('XXX')
+                ->range('a', 'f')
+                ->range('0', '9')
+                ->string('XXX')
                 ->end()
                 ->toRegexString()
         );
-
     }
 
-    public function test_any_of_chars(): void
+    public function testAnyOfChars(): void
     {
-
-        $this->assertEquals('/[aeiou]/',
+        static::assertSame(
+            '/[aeiou]/',
             SuperExpressive::create()
                 ->anyOfChars('aeiou')
                 ->toRegexString()
         );
-
     }
 
-    public function test_anything_but_chars(): void
+    public function testAnythingButChars(): void
     {
-
-        $this->assertEquals('/[^aeiou]/',
+        static::assertSame(
+            '/[^aeiou]/',
             SuperExpressive::create()
                 ->anythingButChars('aeiou')
                 ->toRegexString()
         );
-
     }
 
-    public function test_anything_but_string(): void
+    public function testAnythingButString(): void
     {
-
-        $this->assertEquals('/(?:[^a][^e][^i][^o][^u])/',
+        static::assertSame(
+            '/(?:[^a][^e][^i][^o][^u])/',
             SuperExpressive::create()
                 ->anythingButString('aeiou')
                 ->toRegexString()
         );
-
     }
 
-    public function test_optional(): void
+    public function testOptional(): void
     {
-
-        $this->assertEquals('/\d?/',
+        static::assertSame(
+            '/\d?/',
             SuperExpressive::create()
                 ->optional()
                 ->digit()
@@ -180,10 +220,10 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_exactly(): void
+    public function testExactly(): void
     {
-
-        $this->assertEquals('/\d{5}/',
+        static::assertSame(
+            '/\d{5}/',
             SuperExpressive::create()
                 ->exactly(5)
                 ->digit()
@@ -191,130 +231,131 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_on_or_more(): void
+    public function testOnOrMore(): void
     {
-
-        $this->assertEquals('/\d+/',
+        static::assertSame(
+            '/\d+/',
             SuperExpressive::create()
                 ->oneOrMore()
                 ->digit()
                 ->toRegexString()
         );
-
     }
 
-    public function test_start_of_input(): void
+    public function testStartOfInput(): void
     {
-
-        $this->assertEquals('/^/',
+        static::assertSame(
+            '/^/',
             SuperExpressive::create()
                 ->startOfInput()
                 ->toRegexString()
         );
     }
 
-    public function test_end_of_input(): void
+    public function testEndOfInput(): void
     {
-
-        $this->assertEquals('/$/',
+        static::assertSame(
+            '/$/',
             SuperExpressive::create()
                 ->endOfInput()
                 ->toRegexString()
         );
     }
 
-    public function test_one_or_more_lazy(): void
+    public function testOneOrMoreLazy(): void
     {
-
-        $this->assertEquals('/\w+?/',
+        static::assertSame(
+            '/\w+?/',
             SuperExpressive::create()
                 ->oneOrMoreLazy()->word()
                 ->toRegexString()
         );
     }
 
-    public function test_zero_or_more(): void
+    public function testZeroOrMore(): void
     {
-
-        $this->assertEquals('/\w*/',
+        static::assertSame(
+            '/\w*/',
             SuperExpressive::create()
                 ->zeroOrMore()->word()
                 ->toRegexString()
         );
     }
 
-    public function test_zero_or_more_lazy(): void
+    public function testZeroOrMoreLazy(): void
     {
-
-        $this->assertEquals('/\w*?/',
+        static::assertSame(
+            '/\w*?/',
             SuperExpressive::create()
                 ->zeroOrMoreLazy()->word()
                 ->toRegexString()
         );
     }
 
-    public function test_between(): void
+    public function testBetween(): void
     {
-
-        $this->assertEquals('/\w{4,7}/',
+        static::assertSame(
+            '/\w{4,7}/',
             SuperExpressive::create()
-                ->between(4,7)->word()
+                ->between(4, 7)->word()
                 ->toRegexString()
         );
     }
 
-    public function test_between_lazy(): void
+    public function testBetweenLazy(): void
     {
-        $this->assertEquals('/\w{4,7}?/',
+        static::assertSame(
+            '/\w{4,7}?/',
             SuperExpressive::create()
-                ->betweenLazy(4,7)->word()
+                ->betweenLazy(4, 7)->word()
                 ->toRegexString()
         );
     }
 
-    public function test_not_ahead(): void
+    public function testNotAhead(): void
     {
-        $this->assertEquals('/(?![a-f])[0-9]/',
+        static::assertSame(
+            '/(?![a-f])[0-9]/',
             SuperExpressive::create()
                 ->assertNotAhead()
-                    ->range('a','f')
+                ->range('a', 'f')
                 ->end()
-                ->range('0','9')
+                ->range('0', '9')
                 ->toRegexString()
         );
     }
 
-    public function test_ahead(): void
+    public function testAhead(): void
     {
-
-        $this->assertEquals('/(?=[a-f])[0-9]/',
+        static::assertSame(
+            '/(?=[a-f])[0-9]/',
             SuperExpressive::create()
                 ->assertAhead()
-                ->range('a','f')
+                ->range('a', 'f')
                 ->end()
-                ->range('0','9')
+                ->range('0', '9')
                 ->toRegexString()
         );
     }
 
-    public function test_group(): void
+    public function testGroup(): void
     {
-
-        $this->assertEquals('/(?:hello \w\!)/',
+        static::assertSame(
+            '/(?:hello \w\!)/',
             SuperExpressive::create()
                 ->group()
-                    ->string('hello ')
-                    ->word()
-                    ->char('!')
+                ->string('hello ')
+                ->word()
+                ->char('!')
                 ->end()
                 ->toRegexString()
         );
     }
 
-    public function test_capture(): void
+    public function testCapture(): void
     {
-
-        $this->assertEquals('/(hello \w\!)/',
+        static::assertSame(
+            '/(hello \w\!)/',
             SuperExpressive::create()
                 ->capture()
                 ->string('hello ')
@@ -325,10 +366,10 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_named_capture(): void
+    public function testNamedCapture(): void
     {
-
-        $this->assertEquals('/(?<this_is_the_name>hello \w\!)/',
+        static::assertSame(
+            '/(?<this_is_the_name>hello \w\!)/',
             SuperExpressive::create()
                 ->namedCapture('this_is_the_name')
                 ->string('hello ')
@@ -339,23 +380,25 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_back_reference(): void
+    public function testBackReference(): void
     {
-        $this->assertEquals('/(hello \w\!)\1/',
+        static::assertSame(
+            '/(hello \w\!)\1/',
             SuperExpressive::create()
                 ->capture()
-                    ->string('hello ')
-                    ->word()
-                    ->char('!')
+                ->string('hello ')
+                ->word()
+                ->char('!')
                 ->end()
                 ->backreference(1)
                 ->toRegexString()
         );
     }
 
-    public function test_named_back_reference(): void
+    public function testNamedBackReference(): void
     {
-        $this->assertEquals('/(?<this_is_the_name>hello \w\!)\k<this_is_the_name>/',
+        static::assertSame(
+            '/(?<this_is_the_name>hello \w\!)\k<this_is_the_name>/',
             SuperExpressive::create()
                 ->namedCapture('this_is_the_name')
                 ->string('hello ')
@@ -367,41 +410,81 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
-    public function test_simple_subexpression(): void
+    public function testSimpleSubexpression(): void
     {
         $simpleSubExpression = SuperExpressive::create()
             ->string('hello')
             ->anyChar()
-            ->string('world');
+            ->string('world')
+        ;
 
-        $this->assertEquals('/^\d{3,}hello.world[0-9]$/',
+        static::assertSame(
+            '/^\d{3,}hello.world[0-9]$/',
             SuperExpressive::create()
                 ->startOfInput()
                 ->atLeast(3)->digit()
                 ->subexpression($simpleSubExpression)
-                ->range('0','9')
+                ->range('0', '9')
                 ->endOfInput()
                 ->toRegexString()
         );
     }
 
-    public function test_sub_expression(): void
+    public function testSubExpression(): void
     {
         $fiveDigits = SuperExpressive::create()->exactly(5)->digit();
 
-        $this->assertEquals('/[a-z]+.{3,}\d{5}/',
+        static::assertSame(
+            '/[a-z]+.{3,}\d{5}/',
             SuperExpressive::create()
-                ->oneOrMore()->range('a','z')
+                ->oneOrMore()->range('a', 'z')
                 ->atLeast(3)->anyChar()
                 ->subexpression($fiveDigits)
                 ->toRegexString()
         );
     }
 
-    public function test_regex_string(): void
+    public function testSubExpressionFlags(): void
     {
+        $flagsSubExpression = SuperExpressive::create()
+            ->allowMultipleMatches()
+            ->unicode()
+            ->lineByLine()
+            ->caseInsensitive()
+            ->string('hello')
+            ->anyChar()
+            ->string('world')
+        ;
 
-        $this->assertEquals('/^(?:0x)?([A-Fa-f0-9]{4})$/gm',
+        static::assertSame(
+            '/^\d{3,}hello.world[0-9]$/gymiu',
+            SuperExpressive::create()
+                ->sticky()
+                ->startOfInput()
+                ->atLeast(3)->digit()
+                ->subexpression($flagsSubExpression, ['ignoreFlags' => false])
+                ->range('0', '9')
+                ->endOfInput()
+                ->toRegexString()
+        );
+
+        static::assertSame(
+            '/^\d{3,}hello.world[0-9]$/y',
+            SuperExpressive::create()
+                ->sticky()
+                ->startOfInput()
+                ->atLeast(3)->digit()
+                ->subexpression($flagsSubExpression)
+                ->range('0', '9')
+                ->endOfInput()
+                ->toRegexString()
+        );
+    }
+
+    public function testRegexString(): void
+    {
+        static::assertSame(
+            '/^(?:0x)?([A-Fa-f0-9]{4})$/gm',
             SuperExpressive::create()
                 ->allowMultipleMatches()
                 ->lineByLine()
@@ -417,7 +500,5 @@ final class SuperExpressiveTest extends TestCase
                 ->endOfInput()
                 ->toRegexString()
         );
-
     }
-
 }

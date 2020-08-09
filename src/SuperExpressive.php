@@ -9,6 +9,7 @@ assert_options(ASSERT_EXCEPTION, 1);
 final class SuperExpressive
 {
     private \stdClass $state;
+
     private \stdClass $t;
 
     private static array $quantifierTable = [
@@ -23,9 +24,11 @@ final class SuperExpressive
         'betweenLazy' => '{${times[0]},${times[1]}}?',
     ];
 
+    private static string $namedGroupRegex = '/^[a-z]+\w*$/i';
+
     public function __construct()
     {
-        $this->t = (object)[
+        $this->t = (object) [
             'root' => $this->asType('root')(),
             'noop' => $this->asType('noop')(),
             'startOfInput' => $this->asType('startOfInput')(),
@@ -70,16 +73,16 @@ final class SuperExpressive
             'exactly' => $this->deferredType('exactly', ['containsChild' => true]),
         ];
 
-        $this->state = (object)[
+        $this->state = (object) [
             'hasDefinedStart' => false,
             'hasDefinedEnd' => false,
-            'flags' => (object)[
+            'flags' => (object) [
                 'g' => false,
                 'y' => false,
                 'm' => false,
                 'i' => false,
                 'u' => false,
-                's' => false
+                's' => false,
             ],
             'stack' => [$this->createStackFrame($this->t->root)],
             'namedGroups' => [],
@@ -154,7 +157,7 @@ final class SuperExpressive
 
     public function toRegexString(): string
     {
-        list($pattern, $flags) = $this->getRegexPatternAndFlags();
+        [$pattern, $flags] = $this->getRegexPatternAndFlags();
 
         return sprintf('/%s/%s', $pattern, $flags);
     }
@@ -182,90 +185,42 @@ final class SuperExpressive
     public function allowMultipleMatches(): self
     {
         $this->state->flags->g = true;
+
         return $this;
     }
 
     public function lineByLine(): self
     {
         $this->state->flags->m = true;
+
         return $this;
     }
 
     public function caseInsensitive(): self
     {
         $this->state->flags->i = true;
+
         return $this;
     }
 
     public function sticky(): self
     {
         $this->state->flags->y = true;
+
         return $this;
     }
 
     public function unicode(): self
     {
         $this->state->flags->u = true;
+
         return $this;
     }
 
     public function singleLine(): self
     {
         $this->state->flags->s = true;
-        return $this;
-    }
 
-    public function string(string $string): self
-    {
-        //assert($string !== '', '$string cannot be an empty string');
-        if ($string === '') {
-            throw new \AssertionError('$string cannot be an empty string');
-        }
-
-        $n = clone $this->t->string;
-        $elementValue = strlen($string) > 1 ? $this->escapeSpecial($string) : $string;
-        $n->value = $elementValue;
-
-        $currentFrame = $this->getCurrentFrame();
-
-        $currentFrame->elements[] = $this->applyQuantifier($n);
-        return $this;
-    }
-
-    public function char(string $string): self
-    {
-        $n = clone $this->t->char;
-        $elementValue = $this->escapeSpecial($string);
-        $n->value = $elementValue;
-        $currentFrame = $this->getCurrentFrame();
-
-        $currentFrame->elements[] = $this->applyQuantifier($n);
-        return $this;
-    }
-
-    public function range(string $strA, string $strB): self
-    {
-        //TODO asserts
-
-        $n = clone $this->t->range;
-        $n->value = [$strA, $strB];
-
-        $currentFrame = $this->getCurrentFrame();
-        $currentFrame->elements[] = $this->applyQuantifier($n);
-
-
-        return $this;
-    }
-
-    public function anythingButRange($a, $b): self
-    {
-
-        //TODO asserts
-        $n = $this->t->anythingButRange;
-        $n->value = [$a, $b];
-
-        $currentFrame = $this->getCurrentFrame();
-        $currentFrame->elements[] = $this->applyQuantifier($n);
         return $this;
     }
 
@@ -294,26 +249,100 @@ final class SuperExpressive
         return $this->quantifierElement('oneOrMoreLazy');
     }
 
-    public function end(): self
+    public function exactly(int $n): self
     {
-        $oldFrame = array_pop($this->state->stack);
+        $this->assert($n > 0, strtr('n must be a positive integer (got ${n})', ['${n}' => $n]));
+
         $currentFrame = $this->getCurrentFrame();
-        $element = clone $currentFrame;
-        $element->type = $oldFrame->type;
-        $element->value = $oldFrame->elements;
-        if (property_exists($oldFrame, 'metadata')) {
-            $element->metadata = $oldFrame->metadata;
-        } else {
-            $element->metadata = null;
+
+        $quantifier = clone $this->t->exactly;
+        $quantifier->value = $n;
+        $quantifier->times = $n;
+
+        $currentFrame->quantifier = $quantifier;
+
+        return $this;
+    }
+
+    public function atLeast(int $n): self
+    {
+        $this->assert($n > 0, strtr('n must be a positive integer (got ${n})', ['${n}' => $n]));
+        $currentFrame = $this->getCurrentFrame();
+
+        $quantifier = clone $this->t->atLeast;
+        $quantifier->value = $n;
+        $quantifier->times = $n;
+
+        $currentFrame->quantifier = $quantifier;
+
+        return $this;
+    }
+
+    public function between(int $x, int $y): self
+    {
+        $this->assert($x >= 0, strtr('x must be an integer (got ${x})', ['${x}' => $x]));
+        $this->assert($y > 0, strtr('y must be an integer greater than 0 (got ${y})', ['${y}' => $y]));
+        $this->assert($x < $y, strtr('x must be less than y (x = ${x}, y = ${y})', ['${x}' => $x, '${y}' => $y]));
+
+        $currentFrame = $this->getCurrentFrame();
+
+        if ($currentFrame->quantifier) {
+            throw new \RuntimeException(strtr('cannot quantify regular expression with "between" because it\'s already being quantified with "${currentFrame.quantifier.type}"', ['${currentFrame.quantifier.type}' => $currentFrame->quantifier->type]));
         }
-        $currentFrame->elements[] = $this->applyQuantifier($element);
+
+        $n = clone $this->t->between;
+        $n->times[0] = $x;
+        $n->times[1] = $y;
+        $currentFrame->quantifier = $n;
+
+        return $this;
+    }
+
+    public function betweenLazy(int $x, int $y): self
+    {
+        $this->assert($x >= 0, strtr('x must be an integer (got ${x})', ['${x}' => $x]));
+        $this->assert($y > 0, strtr('y must be an integer greater than 0 (got ${y})', ['${y}' => $y]));
+        $this->assert($x < $y, strtr('x must be less than y (x = ${x}, y = ${y})', ['${x}' => $x, '${y}' => $y]));
+
+        $currentFrame = $this->getCurrentFrame();
+
+        if ($currentFrame->quantifier) {
+            throw new \RuntimeException(strtr('cannot quantify regular expression with "betweenLazy" because it\'s already being quantified with "${currentFrame.quantifier.type}"', ['${currentFrame.quantifier.type}' => $currentFrame->quantifier->type]));
+        }
+
+        $n = clone $this->t->betweenLazy;
+        $n->times[0] = $x;
+        $n->times[1] = $y;
+        $currentFrame->quantifier = $n;
+
+        return $this;
+    }
+
+    public function startOfInput(): self
+    {
+        $this->assert(!$this->state->hasDefinedStart, 'This regex already has a defined start of input');
+        $this->assert(!$this->state->hasDefinedEnd, 'Cannot define the start of input after the end of input');
+
+        $this->state->hasDefinedStart = true;
+        $currentElementArray = &$this->getCurrentElementArray();
+        $currentElementArray[] = $this->t->startOfInput;
+
+        return $this;
+    }
+
+    public function endOfInput(): self
+    {
+        $this->assert(!$this->state->hasDefinedEnd, 'This regex already has a defined end of input');
+
+        $this->state->hasDefinedEnd = true;
+        $currentElementArray = &$this->getCurrentElementArray();
+        $currentElementArray[] = $this->t->endOfInput;
 
         return $this;
     }
 
     public function anyOfChars(string $string): self
     {
-
         $n = clone $this->t->anyOfChars;
         $n->value = $this->escapeSpecial($string);
 
@@ -324,23 +353,32 @@ final class SuperExpressive
         return $this;
     }
 
-    public function anythingButChars(string $string): self
+    public function end(): self
     {
-        $n = clone $this->t->anythingButChars;
-        $n->value = $this->escapeSpecial($string);
+        $this->assert(\count($this->state->stack) > 1, 'Cannot call end while building the root expression.');
 
+        $oldFrame = array_pop($this->state->stack);
         $currentFrame = $this->getCurrentFrame();
+        $element = clone $currentFrame;
+        $element->type = $oldFrame->type;
+        $element->value = $oldFrame->elements;
 
-        $currentFrame->elements[] = $this->applyQuantifier($n);
+        if (property_exists($oldFrame, 'metadata')) {
+            $element->metadata = $oldFrame->metadata;
+        } else {
+            $element->metadata = null;
+        }
+        $currentFrame->elements[] = $this->applyQuantifier($element);
 
         return $this;
-
     }
 
-    public function anythingButString(string $string): self
+    public function anythingButString(string $str): self
     {
+        $this->assert('' !== $str, 'str must have least one character');
+
         $n = clone $this->t->anythingButString;
-        $n->value = $this->escapeSpecial($string);
+        $n->value = $this->escapeSpecial($str);
 
         $currentFrame = $this->getCurrentFrame();
 
@@ -349,34 +387,87 @@ final class SuperExpressive
         return $this;
     }
 
-    public function exactly(int $int): self
+    public function anythingButChars(string $chars): self
     {
+        $this->assert('' !== $chars, 'chars must have at least one character');
+
+        $n = clone $this->t->anythingButChars;
+        $n->value = $this->escapeSpecial($chars);
+
         $currentFrame = $this->getCurrentFrame();
 
-        $n = clone $this->t->exactly;
-        $n->value = $int;
-        $n->times = $int;
-
-        $currentFrame->quantifier = $n;
+        $currentFrame->elements[] = $this->applyQuantifier($n);
 
         return $this;
     }
 
-    public function atLeast(int $int): self
+    public function anythingButRange($strA, $strB): self
     {
+        $this->assert(1 === \strlen((string) $strA), strtr('a must be a single character or number (got ${strA})', ['${strA}' => $strA]));
+        $this->assert(1 === \strlen((string) $strB), strtr('b must be a single character or number (got ${strB})', ['${strB}' => $strB]));
+        $this->assert(\ord((string) $strA) < \ord((string) $strB), strtr('a must have a smaller character value than b (a = ${strA.charCodeAt(0)}, b = ${strB.charCodeAt(0)})', ['${strA.charCodeAt(0)}' => \ord((string) $strA), '${strB.charCodeAt(0)}' => \ord((string) $strB)]));
+
+        $n = $this->t->anythingButRange;
+        $n->value = [$strA, $strB];
+
         $currentFrame = $this->getCurrentFrame();
-
-        $n = clone $this->t->atLeast;
-        $n->value = $int;
-        $n->times = $int;
-
-        $currentFrame->quantifier = $n;
+        $currentFrame->elements[] = $this->applyQuantifier($n);
 
         return $this;
     }
 
-    public function subexpression(SuperExpressive $expr, $opts = []): self
+    public function string(string $string): self
     {
+        $this->assert('' !== $string, '$string cannot be an empty string');
+
+        $n = clone $this->t->string;
+        $elementValue = \strlen($string) > 1 ? $this->escapeSpecial($string) : $string;
+        $n->value = $elementValue;
+
+        $currentFrame = $this->getCurrentFrame();
+
+        $currentFrame->elements[] = $this->applyQuantifier($n);
+
+        return $this;
+    }
+
+    public function char(string $c): self
+    {
+        $this->assert(1 === \strlen($c), strtr('char() can only be called with a single character (got ${c})', ['${c}' => $c]));
+
+        $n = clone $this->t->char;
+        $elementValue = $this->escapeSpecial($c);
+        $n->value = $elementValue;
+        $currentFrame = $this->getCurrentFrame();
+
+        $currentFrame->elements[] = $this->applyQuantifier($n);
+
+        return $this;
+    }
+
+    public function range(string $strA, string $strB): self
+    {
+        $this->assert(1 === \strlen($strA), strtr('a must be a single character or number (got ${strA})', ['${strA}' => $strA]));
+        $this->assert(1 === \strlen($strB), strtr('b must be a single character or number (got ${strB})', ['${strB}' => $strB]));
+        $this->assert(\ord($strA) < \ord($strB), strtr('a must have a smaller character value than b (a = ${strA.charCodeAt(0)}, b = ${strB.charCodeAt(0)})', ['${strA.charCodeAt(0)}' => \ord($strA), '${strB.charCodeAt(0)}' => \ord($strB)]));
+
+        $n = clone $this->t->range;
+        $n->value = [$strA, $strB];
+
+        $currentFrame = $this->getCurrentFrame();
+        $currentFrame->elements[] = $this->applyQuantifier($n);
+
+        return $this;
+    }
+
+    public function subexpression(self $expr, array $opts = []): self
+    {
+        $this->assert(
+            1 === \count($expr->state->stack),
+            strtr('Cannot call subexpression with a not yet fully specified regex object.'.
+                '\n(Try adding a .end() call to match the "${expr[getCurrentFrame]().type.type}" on the subexpression)\n', ['${expr[getCurrentFrame]().type.type}' => $expr->getCurrentFrame()->type])
+        );
+
         $options = $this->applySubexpressionDefaults($opts);
 
         $exprNext = clone $expr;
@@ -392,10 +483,11 @@ final class SuperExpressive
         $this->state->totalCaptureGroups += $additionalCaptureGroups;
 
         if (!$options->ignoreFlags) {
-            //todo
-//            Object . entries(exprNext . state . flags) .forEach(([flagName, enabled]) => {
-//                next . state . flags[flagName] = enabled || next . state . flags[flagName];
-//            });
+            foreach ($exprNext->state->flags as $key => $value) {
+                if (false === $this->state->flags->{$key}) {
+                    $this->state->flags->{$key} = $value;
+                }
+            }
         }
 
         $currentFrame = $this->getCurrentFrame();
@@ -407,93 +499,75 @@ final class SuperExpressive
         return $this;
     }
 
-    public function startOfInput(): self
-    {
-        $this->state->hasDefinedStart = true;
-        $currentElementArray = &$this->getCurrentElementArray();
-        $currentElementArray[] = $this->t->startOfInput;
-        return $this;
-    }
-
     public function capture(): self
     {
         $newFrame = $this->createStackFrame($this->t->capture);
         $this->state->stack[] = $newFrame;
-        $this->state->totalCaptureGroups++;
+        ++$this->state->totalCaptureGroups;
+
         return $this;
     }
 
-    public function endOfInput(): self
-    {
-        $this->state->hasDefinedEnd = true;
-        $currentElementArray = &$this->getCurrentElementArray();
-        $currentElementArray[] = $this->t->endOfInput;
-        return $this;
-
-    }
-
-    public function between(int $x, int $y): self
-    {
-        $currentFrame = $this->getCurrentFrame();
-        if ($currentFrame->quantifier) {
-            throw new \RuntimeException('cannot quantify regular expression with "between" because it\'s already being quantified with "${currentFrame.quantifier.type}"');
-        }
-
-        $n = clone $this->t->between;
-        $n->times[0] = $x;
-        $n->times[1] = $y;
-        $currentFrame->quantifier = $n;
-        return $this;
-
-    }
-
-    public function betweenLazy(int $x, int $y): self
-    {
-        $currentFrame = $this->getCurrentFrame();
-        if ($currentFrame->quantifier) {
-            throw new \RuntimeException('cannot quantify regular expression with "between" because it\'s already being quantified with "${currentFrame.quantifier.type}"');
-        }
-
-        $n = clone $this->t->betweenLazy;
-        $n->times[0] = $x;
-        $n->times[1] = $y;
-        $currentFrame->quantifier = $n;
-        return $this;
-    }
-
-    public function namedCapture(string $string): self
+    public function namedCapture(string $name): self
     {
         $newFrame = $this->createStackFrame($this->t->namedCapture);
-        $newFrame->metadata = $string;
+        $newFrame->metadata = $name;
+        $this->trackNamedGroup($name);
         $this->state->stack[] = $newFrame;
-        $this->state->totalCaptureGroups++;
-        return $this;
+        ++$this->state->totalCaptureGroups;
 
+        return $this;
     }
 
-    public function backreference(int $int):self
+    public function backreference(int $index): self
     {
+        $this->assert(
+            $index > 0 && $index <= $this->state->totalCaptureGroups,
+            strtr('invalid index ${index}. There are ${this.state.totalCaptureGroups} capture groups on this SuperExpression', ['${index}' => $index])
+        );
+
         $e = $this->t->backreference;
-        $e->metadata = $int;
+        $e->metadata = $index;
+
         return $this->matchElement($e);
     }
 
-    public function namedBackreference(string $string): self
+    public function namedBackreference(string $name): self
     {
+        $this->assert(
+            \in_array($name, $this->state->namedGroups, true),
+            strtr('no capture group called "${name}" exists (create one with .namedCapture())', ['${name}' => $name])
+        );
+
         $e = $this->t->namedBackreference;
-        $e->metadata = $string;
+        $e->metadata = $name;
+
         return $this->matchElement($e);
     }
 
     public static function create(): self
     {
-        return new SuperExpressive();
+        return new self();
+    }
+
+    private function trackNamedGroup($name): void
+    {
+        $this->assert('' !== $name, 'name must be at least one character');
+        $this->assert(!\in_array($name, $this->state->namedGroups, true), strtr('cannot use ${name} again for a capture group', ['${name}' => $name]));
+        $this->assert(preg_match(self::$namedGroupRegex, $name) > 0, strtr('name "${name}" is not valid (only letters, numbers, and underscores)', ['${name}' => $name]));
+        $this->state->namedGroups[] = $name;
     }
 
     private function getRegexPatternAndFlags(): array
     {
+        $this->assert(
+            1 === \count($this->state->stack),
+            strtr('Cannot compute the value of a not yet fully specified regex object.'.
+                '\n(Try adding a .end() call to match the "${this[getCurrentFrame]().type.type}")\n', ['${this[getCurrentFrame]().type.type}' => $this->getCurrentFrame()->type])
+        );
+
         $callbackPattern = static function ($n) {
-            return SuperExpressive::evaluate($n);
+            return self::evaluate($n);
         };
         $callbackFlags = static function ($k, $v) {
             if ($v) {
@@ -502,7 +576,7 @@ final class SuperExpressive
         };
         $ea = $this->getCurrentElementArray();
         $pattern = implode('', array_map($callbackPattern, $ea));
-        $flags = implode('', array_map($callbackFlags, array_keys((array)$this->state->flags), (array)$this->state->flags));
+        $flags = implode('', array_map($callbackFlags, array_keys((array) $this->state->flags), (array) $this->state->flags));
 
         return [$pattern, $flags];
     }
@@ -512,54 +586,77 @@ final class SuperExpressive
         switch ($el->type) {
             case 'anyChar':
                 return '.';
+
             case 'whitespaceChar':
                 return '\\s';
+
             case 'nonWhitespaceChar':
                 return '\\S';
+
             case 'digit':
                 return '\\d';
+
             case 'nonDigit':
                 return '\\D';
+
             case 'word':
                 return '\\w';
+
             case 'nonWord':
                 return '\\W';
+
             case 'wordBoundary':
                 return '\\b';
+
             case 'nonWordBoundary':
                 return '\\B';
+
             case 'startOfInput':
                 return '^';
+
             case 'endOfInput':
                 return '$';
+
             case 'newline':
                 return '\\n';
+
             case 'carriageReturn':
                 return '\\r';
+
             case 'tab':
                 return '\\t';
+
             case 'nullByte':
                 return '\\0';
+
             case 'string':
                 return $el->value;
+
             case 'char':
                 return $el->value;
+
             case 'range':
                 return strtr('[${el.value[0]}-${el.value[1]}]', ['${el.value[0]}' => $el->value[0], '${el.value[1]}' => $el->value[1]]);
+
             case 'anythingButRange':
                 return strtr('[^${el.value[0]}-${el.value[1]}]', ['${el.value[0]}' => $el->value[0], '${el.value[1]}' => $el->value[1]]);
+
             case 'anyOfChars':
                 return strtr('[${el.value}]', ['${el.value}' => $el->value]);
+
             case 'anythingButChars':
                 return strtr('[^${el.value}]', ['${el.value}' => $el->value]);
+
             case 'namedBackreference':
                 return strtr('\\k<${el.metadata}>', ['${el.metadata}' => $el->metadata]);
+
             case 'backreference':
                 return strtr('\\${el.metadata}', ['${el.metadata}' => $el->metadata]);
+
             case 'subexpression':
                 return implode('', array_map(static function ($e) {
                     return self::evaluate($e);
-                }, $el->value));//el.value.map(SuperExpressive[evaluate]).join('');
+                }, $el->value));
 
             case 'optional':
             case 'zeroOrMore':
@@ -578,12 +675,12 @@ final class SuperExpressive
             case 'exactly':
                 $inner = self::evaluate($el->value);
                 $withGroup = property_exists($el->value, 'quantifierRequiresGroup') && $el->value->quantifierRequiresGroup ? strtr('(?:${inner})', ['${inner}' => $inner]) : $inner;
-                // todo, make smarter
-                if (is_array($el->times) && count($el->times) > 1) {
-                    return strtr('${withGroup}' . strtr(self::$quantifierTable[$el->type], ['${times[0]}' => $el->times[0], '${times[1]}' => $el->times[1]]), ['${withGroup}' => $withGroup]);
-                } else {
-                    return strtr('${withGroup}' . strtr(self::$quantifierTable[$el->type], ['${times}' => $el->times]), ['${withGroup}' => $withGroup]);
+
+                if (\is_array($el->times) && \count($el->times) > 1) {
+                    return strtr('${withGroup}'.strtr(self::$quantifierTable[$el->type], ['${times[0]}' => $el->times[0], '${times[1]}' => $el->times[1]]), ['${withGroup}' => $withGroup]);
                 }
+
+                return strtr('${withGroup}'.strtr(self::$quantifierTable[$el->type], ['${times}' => $el->times]), ['${withGroup}' => $withGroup]);
 
             case 'anythingButString':
                 $chars = str_split($el->value);
@@ -592,56 +689,60 @@ final class SuperExpressive
                 };
                 $chars = array_map($callback, $chars);
                 $chars = implode('', $chars);
+
                 return strtr('(?:${chars})', ['${chars}' => $chars]);
 
             case 'assertAhead':
                 $evaluated = implode('', array_map(static function ($e) {
                     return self::evaluate($e);
                 }, $el->value));
+
                 return strtr('(?=${evaluated})', ['${evaluated}' => $evaluated]);
 
             case 'assertNotAhead':
                 $evaluated = implode('', array_map(static function ($e) {
                     return self::evaluate($e);
                 }, $el->value));
+
                 return strtr('(?!${evaluated})', ['${evaluated}' => $evaluated]);
 
             case 'anyOf':
                 [$fused, $rest] = self::fuseElements($el->value);
-                if (count($rest) < 1) {
+
+                if (\count($rest) < 1) {
                     return strtr('[${fused}]', ['${fused}' => $fused]);
                 }
 
                 $evaluatedRest = array_map(function ($e) {
                     return self::evaluate($e);
-                }, $rest);// $rest.map(SuperExpressive[evaluate]);
-                $separator = (count($evaluatedRest) > 0 && strlen($fused) > 0) ? '|' : '';
-                return '(?:' . implode('|', $evaluatedRest) . $separator . ('' !== $fused ? '[' . $fused . ']' : '') . ')';
+                }, $rest);
+                $separator = (\count($evaluatedRest) > 0 && \strlen($fused) > 0) ? '|' : '';
 
+                return '(?:'.implode('|', $evaluatedRest).$separator.('' !== $fused ? '['.$fused.']' : '').')';
 
             case 'capture':
                 $evaluated = implode('', array_map(static function ($e) {
                     return self::evaluate($e);
                 }, $el->value));
-                return strtr('(${evaluated})', ['${evaluated}' => $evaluated]);
 
+                return strtr('(${evaluated})', ['${evaluated}' => $evaluated]);
 
             case 'namedCapture':
                 $evaluated = implode('', array_map(static function ($e) {
                     return self::evaluate($e);
                 }, $el->value));
-                return strtr('(?<${el.metadata}>${evaluated})', ['${el.metadata}' => $el->metadata, '${evaluated}' => $evaluated]);
 
+                return strtr('(?<${el.metadata}>${evaluated})', ['${el.metadata}' => $el->metadata, '${evaluated}' => $evaluated]);
 
             case 'group':
                 $evaluated = implode('', array_map(static function ($e) {
                     return self::evaluate($e);
                 }, $el->value));
+
                 return strtr('(?:${evaluated})', ['${evaluated}' => $evaluated]);
 
             default:
-                throw new \RuntimeException('Can\'t process unsupported element type: ' . $el->type . '');
-
+                throw new \RuntimeException('Can\'t process unsupported element type: '.$el->type.'');
         }
     }
 
@@ -649,6 +750,7 @@ final class SuperExpressive
     {
         $newFrame = clone $this->createStackFrame($typeFn);
         $this->state->stack[] = $newFrame;
+
         return $this;
     }
 
@@ -656,24 +758,28 @@ final class SuperExpressive
     {
         $currentElementArray = &$this->getCurrentElementArray();
         $currentElementArray[] = $this->applyQuantifier($typeFn);
+
         return $this;
     }
 
     private function applyQuantifier(\stdClass $element): \stdClass
     {
         $currentFrame = $this->getCurrentFrame();
+
         if (null !== $currentFrame->quantifier) {
             $wrapped = clone $currentFrame->quantifier;
             $wrapped->value = $element;
             $currentFrame->quantifier = null;
+
             return $wrapped;
         }
+
         return $element;
     }
 
     private function getCurrentFrame(): \stdClass
     {
-        return $this->state->stack[count($this->state->stack) - 1];
+        return $this->state->stack[\count($this->state->stack) - 1];
     }
 
     private function &getCurrentElementArray(): array
@@ -688,53 +794,55 @@ final class SuperExpressive
 
     private function asType(string $type, array $options = null): \Closure
     {
-        $f = function () use ($type, $options) {
-            return null !== $options ? (object)array_merge(['type' => $type], $options) : (object)['type' => $type];
+        $f = static function () use ($type, $options) {
+            return null !== $options ? (object) array_merge(['type' => $type], $options) : (object) ['type' => $type];
         };
+
         return $f;
     }
 
     private function deferredType(string $string, array $options = null): \stdClass
     {
         $typeFn = $this->asType($string, $options);
-        return ($typeFn)();
+
+        return $typeFn();
     }
 
     private function createStackFrame(\stdClass $typeFn): \stdClass
     {
-        return (object)[
+        return (object) [
             'type' => $typeFn->type,
             'quantifier' => null,
-            'elements' => []
+            'elements' => [],
         ];
     }
 
     private function quantifierElement(string $typeFnName): self
     {
         $currentFrame = $this->getCurrentFrame();
+
         if (null !== $currentFrame->quantifier) {
-            throw new \RuntimeException('cannot quantify regular expression with "${typeFnName}" because it\'s already being quantified with "${currentFrame.quantifier.type}"');
+            throw new \RuntimeException(strtr('cannot quantify regular expression with "${typeFnName}" because it\'s already being quantified with "${currentFrame.quantifier.type}"', ['${typeFnName}' => $typeFnName, '${currentFrame.quantifier.type}' => $currentFrame->quantifier->type]));
         }
 
-        $currentFrame->quantifier = $this->t->$typeFnName;
+        $currentFrame->quantifier = $this->t->{$typeFnName};
 
         return $this;
     }
 
-    private function mergeSubexpression($el, $options, $parent, $incrementCaptureGroups): \stdClass
+    private function mergeSubexpression(\stdClass $el, \stdClass $options, self $parent, int $incrementCaptureGroups): \stdClass
     {
         $nextEl = clone $el;
 
-        if ($nextEl->type === 'backreference') {
+        if ('backreference' === $nextEl->type) {
             $nextEl->index += $parent->state->totalCaptureGroups;
         }
 
-        if ($nextEl->type === 'capture') {
-            $incrementCaptureGroups++;
+        if ('capture' === $nextEl->type) {
+            ++$incrementCaptureGroups;
         }
 
-
-        if ($nextEl->type === 'namedCapture') {
+        if ('namedCapture' === $nextEl->type) {
             $groupName = $options->namespace
                 ? '${options.namespace}${nextEl.name}'
                 : $nextEl->name;
@@ -743,62 +851,75 @@ final class SuperExpressive
             $nextEl->name = $groupName;
         }
 
-
-        if ($nextEl->type === 'namedBackreference') {
+        if ('namedBackreference' === $nextEl->type) {
             $nextEl->name = $options->namespace
                 ? strtr('${options.namespace}${nextEl.name}', ['${options.namespace}' => $options->namespace, '${nextEl.name}' => $nextEl->name])
                 : $nextEl->name;
         }
 
-
         if (property_exists($nextEl, 'containsChild') && $nextEl->containsChild) {
             $nextEl->value = self::mergeSubexpression($nextEl->value, $options, $parent, $incrementCaptureGroups);
-        } else if (property_exists($nextEl, 'containsChildren') && $nextEl->containsChildren) {
+        } elseif (property_exists($nextEl, 'containsChildren') && $nextEl->containsChildren) {
             $nextEl->value = array_map(static function ($e) use ($options, $parent, $incrementCaptureGroups) {
                 return self::mergeSubexpression($e, $options, $parent, $incrementCaptureGroups);
             }, $nextEl->value);
         }
 
-        if ($nextEl->type === 'startOfInput') {
+        if ('startOfInput' === $nextEl->type) {
             if ($options->ignoreStartAndEnd) {
                 return $this->t->noop;
             }
+
+            $this->assert(
+                !$parent->state->hasDefinedStart,
+                'The parent regex already has a defined start of input. '.
+                'You can ignore a subexpressions startOfInput/endOfInput markers with the ignoreStartAndEnd option'
+            );
+
+            $this->assert(
+                !$parent->state->hasDefinedEnd,
+                'The parent regex already has a defined end of input. '.
+                'You can ignore a subexpressions startOfInput/endOfInput markers with the ignoreStartAndEnd option'
+            );
+
             $parent->state->hasDefinedEnd = true;
         }
 
-        if ($nextEl->type === 'endOfInput') {
+        if ('endOfInput' === $nextEl->type) {
             if ($options->ignoreStartAndEnd) {
                 return $this->t->noop;
             }
+
+            $this->assert(
+                !$parent->state->hasDefinedEnd,
+                'The parent regex already has a defined start of input. '.
+                'You can ignore a subexpressions startOfInput/endOfInput markers with the ignoreStartAndEnd option'
+            );
+
             $parent->state->hasDefinedEnd = true;
         }
+
         return $nextEl;
     }
 
     private function applySubexpressionDefaults(array $expr): \stdClass
     {
-        //  const out = { ...expr };
-//  out.namespace = ('namespace' in out) ? out.namespace : '';
-//  out.ignoreFlags = ('ignoreFlags' in out) ? out.ignoreFlags : true;
-//  out.ignoreStartAndEnd = ('ignoreStartAndEnd' in out) ? out.ignoreStartAndEnd : true;
-//
-//  assert(typeof out.namespace === 'string', 'namespace must be a string');
-//  assert(typeof out.ignoreFlags === 'boolean', 'ignoreFlags must be a boolean');
-//  assert(typeof out.ignoreStartAndEnd === 'boolean', 'ignoreStartAndEnd must be a boolean');
-//
-//  return out;
-        $out = (object)$expr;
-        $out->namespace = '';
-        $out->ignoreFlags = true;
-        $out->ignoreStartAndEnd = true;
-        //todo pick up args
+        $out = (object) $expr;
+        $out->namespace = \array_key_exists('namespace', $expr) ? $expr['namespace'] : '';
+        $out->ignoreFlags = \array_key_exists('ignoreFlags', $expr) ? $expr['ignoreFlags'] : true;
+        $out->ignoreStartAndEnd = \array_key_exists('ignoreStartAndEnd', $expr) ? $expr['ignoreStartAndEnd'] : true;
+
+        $this->assert(\is_string($out->namespace), 'namespace must be a string');
+        $this->assert(\is_bool($out->ignoreFlags), 'ignoreFlags must be a boolean');
+        $this->assert(\is_bool($out->ignoreStartAndEnd), 'ignoreStartAndEnd must be a boolean');
+
         return $out;
     }
 
     private static function isFusable(): \Closure
     {
-        return function ($element) {
-            return in_array($element->type, ['range', 'char', 'anyOfChars']);
+        return static function ($element) {
+            return \in_array($element->type, ['range', 'char', 'anyOfChars'], true);
         };
     }
 
@@ -807,9 +928,10 @@ final class SuperExpressive
         [$fusables, $rest] = self::partition(self::isFusable(), $elements);
 
         $callbackFused = static function ($n) {
-            if (in_array($n->type, ['char', 'anyOfChars'])) {
+            if (\in_array($n->type, ['char', 'anyOfChars'], true)) {
                 return $n->value;
             }
+
             return strtr('${el.value[0]}-${el.value[1]}', ['${el.value[0]}' => $n->value[0], '${el.value[1]}' => $n->value[1]]);
         };
         $fused = implode('', array_map($callbackFused, $fusables));
@@ -821,6 +943,7 @@ final class SuperExpressive
     {
         $fusables = [];
         $rest = [];
+
         foreach ($elements as $element) {
             if ($pred($element)) {
                 $fusables[] = $element;
@@ -832,4 +955,12 @@ final class SuperExpressive
         return [$fusables, $rest];
     }
 
+    private function assert(bool $param, string $string): ?\AssertionError
+    {
+        if (!$param) {
+            throw new \AssertionError($string);
+        }
+
+        return null;
+    }
 }
