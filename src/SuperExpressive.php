@@ -751,7 +751,7 @@ final class SuperExpressive
         }
 
 
-        if ($nextEl->containsChile) {
+        if ($nextEl->containsChildren) {
             $nextEl->value = self::mergeSubexpression($nextEl->value, $options, $parent, $incrementCaptureGroups);
         } else if ($nextEl->containsChildren) {
             $nextEl->value = array_map(static function ($e) use ($options, $parent, $incrementCaptureGroups) {
