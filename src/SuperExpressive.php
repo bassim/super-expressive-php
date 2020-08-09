@@ -550,7 +550,7 @@ final class SuperExpressive
         return new self();
     }
 
-    private function trackNamedGroup($name): void
+    private function trackNamedGroup(string $name): void
     {
         $this->assert('' !== $name, 'name must be at least one character');
         $this->assert(!\in_array($name, $this->state->namedGroups, true), strtr('cannot use ${name} again for a capture group', ['${name}' => $name]));
@@ -923,7 +923,7 @@ final class SuperExpressive
         };
     }
 
-    private static function fuseElements($elements): array
+    private static function fuseElements(array $elements): array
     {
         [$fusables, $rest] = self::partition(self::isFusable(), $elements);
 
@@ -939,7 +939,7 @@ final class SuperExpressive
         return [$fused, $rest];
     }
 
-    private static function partition(\Closure $pred, $elements): array
+    private static function partition(\Closure $pred, array $elements): array
     {
         $fusables = [];
         $rest = [];
