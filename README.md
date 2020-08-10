@@ -43,7 +43,7 @@ $myRegex = SuperExpressive::create()
       ->range('0', '9')
     ->end()
   ->end()
-  ->endOfInput
+  ->endOfInput()
   ->toRegexString();
 
 // Produces the following regular expression:
