@@ -62,4 +62,4 @@ composer require bassim/super-expressive-php
 
 You're free to use this package, but if it makes it to your production environment I highly appreciate you sending me a postcard from your hometown, mentioning which of my package(s) you are using.
 
-My address is: Bas, Random Studios, Westzaanstraat 10, 1013 NG Amsterdam, The Netherlands.
+My address is: Bas, Random Studio, Westzaanstraat 10, 1013 NG Amsterdam, The Netherlands.
