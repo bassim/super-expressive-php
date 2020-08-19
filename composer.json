@@ -42,8 +42,8 @@
         "test-coverage": "vendor/bin/phpunit --coverage-html coverage"
     },
     "support": {
-        "issues": "https://github.com/bassim/super-expressive/issues",
-        "source": "https://github.com/bassim/super-expressive",
-        "docs": "https://github.com/bassim/super-expressive"
+        "issues": "https://github.com/bassim/super-expressive-php/issues",
+        "source": "https://github.com/bassim/super-expressive-php",
+        "docs": "https://github.com/bassim/super-expressive-php"
     }
 }
