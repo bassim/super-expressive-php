@@ -501,4 +501,30 @@ final class SuperExpressiveTest extends TestCase
                 ->toRegexString()
         );
     }
+
+    public function testAssertBehind(): void
+    {
+        static::assertSame(
+            '/(?<=hello )[a-z]/',
+            SuperExpressive::create()
+                ->assertBehind()
+                ->string('hello ')
+                ->end()
+                ->range('a', 'z')
+                ->toRegexString()
+        );
+    }
+
+    public function testNotAssertBehind(): void
+    {
+        static::assertSame(
+            '/(?<!hello )[a-z]/',
+            SuperExpressive::create()
+                ->assertNotBehind()
+                ->string('hello ')
+                ->end()
+                ->range('a', 'z')
+                ->toRegexString()
+        );
+    }
 }

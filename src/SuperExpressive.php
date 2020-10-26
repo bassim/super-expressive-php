@@ -61,6 +61,8 @@ final class SuperExpressive
             'group' => $this->deferredType('group', ['containsChildren' => true]),
             'assertAhead' => $this->deferredType('assertAhead', ['containsChildren' => true]),
             'assertNotAhead' => $this->deferredType('assertNotAhead', ['containsChildren' => true]),
+            'assertBehind' => $this->deferredType('assertBehind', ['containsChildren' => true]),
+            'assertNotBehind' => $this->deferredType('assertNotBehind', ['containsChildren' => true]),
             'atLeast' => $this->deferredType('atLeast', ['containsChild' => true]),
             'between' => $this->deferredType('between', ['containsChild' => true]),
             'betweenLazy' => $this->deferredType('betweenLazy', ['containsChild' => true]),
@@ -180,6 +182,16 @@ final class SuperExpressive
     public function assertNotAhead(): self
     {
         return $this->frameCreatingElement($this->t->assertNotAhead);
+    }
+
+    public function assertBehind(): self
+    {
+        return $this->frameCreatingElement($this->t->assertBehind);
+    }
+
+    public function assertNotBehind(): self
+    {
+        return $this->frameCreatingElement($this->t->assertNotBehind);
     }
 
     public function allowMultipleMatches(): self
@@ -705,6 +717,20 @@ final class SuperExpressive
                 }, $el->value));
 
                 return strtr('(?!${evaluated})', ['${evaluated}' => $evaluated]);
+
+            case 'assertBehind':
+                $evaluated = implode('', array_map(static function ($e) {
+                    return self::evaluate($e);
+                }, $el->value));
+
+                return strtr('(?<=${evaluated})', ['${evaluated}' => $evaluated]);
+
+            case 'assertNotBehind':
+                $evaluated = implode('', array_map(static function ($e) {
+                    return self::evaluate($e);
+                }, $el->value));
+
+                return strtr('(?<!${evaluated})', ['${evaluated}' => $evaluated]);
 
             case 'anyOf':
                 [$fused, $rest] = self::fuseElements($el->value);
