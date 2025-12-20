@@ -21,10 +21,12 @@ jobs:
                   coverage: none
 
             - name: Cache composer dependencies
-              uses: actions/cache@v1
+              uses: actions/cache@v4
               with:
                   path: vendor
                   key: composer-${{ hashFiles('composer.lock') }}
+                  restore-keys: |
+                      composer-
 
             - name: Run composer require
               run: composer require -n --prefer-dist
