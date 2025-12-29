@@ -104,7 +104,7 @@ final class SuperExpressive
 
     public function nonWhitespaceChar(): self
     {
-        return $this->matchElement($this->t->notWhitespaceChar);
+        return $this->matchElement($this->t->nonWhitespaceChar);
     }
 
     public function digit(): self

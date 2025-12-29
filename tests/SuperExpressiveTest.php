@@ -155,6 +155,26 @@ final class SuperExpressiveTest extends TestCase
         );
     }
 
+    public function testWhitespaceChar(): void
+    {
+        static::assertSame(
+            '/\s/',
+            SuperExpressive::create()
+                ->whitespaceChar()
+                ->toRegexString()
+        );
+    }
+
+    public function testNonWhitespaceChar(): void
+    {
+        static::assertSame(
+            '/\S/',
+            SuperExpressive::create()
+                ->nonWhitespaceChar()
+                ->toRegexString()
+        );
+    }
+
     public function testAnythingButRange(): void
     {
         static::assertSame(
