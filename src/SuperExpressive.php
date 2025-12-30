@@ -981,12 +981,10 @@ final class SuperExpressive
         return [$fusables, $rest];
     }
 
-    private function assert(bool $param, string $string): ?\AssertionError
+    private function assert(bool $param, string $string): void
     {
         if (!$param) {
             throw new \AssertionError($string);
         }
-
-        return null;
     }
 }
