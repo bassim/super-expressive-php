@@ -547,4 +547,19 @@ final class SuperExpressiveTest extends TestCase
                 ->toRegexString()
         );
     }
+
+    public function testSubexpressionStartOfInputPreventsSecondStart(): void
+    {
+        $this->expectException(\AssertionError::class);
+        $this->expectExceptionMessage('This regex already has a defined start of input');
+
+        $subExprWithStart = SuperExpressive::create()
+            ->startOfInput()
+            ->string('hello');
+
+        SuperExpressive::create()
+            ->subexpression($subExprWithStart, ['ignoreStartAndEnd' => false])
+            ->startOfInput()
+            ->toRegexString();
+    }
 }
