@@ -293,6 +293,58 @@ final class RegexParserTest extends TestCase
     }
 
     // =========================================================================
+    // LOOKAHEAD / LOOKBEHIND
+    // =========================================================================
+
+    public function testParseLookahead(): void
+    {
+        $result = RegexParser::parse('/(?=abc)/');
+        static::assertStringContainsString('assertAhead()', $result);
+        static::assertStringContainsString("string('abc')", $result);
+        static::assertStringContainsString('end()', $result);
+    }
+
+    public function testParseNegativeLookahead(): void
+    {
+        $result = RegexParser::parse('/(?!abc)/');
+        static::assertStringContainsString('assertNotAhead()', $result);
+        static::assertStringContainsString("string('abc')", $result);
+        static::assertStringContainsString('end()', $result);
+    }
+
+    public function testParseLookbehind(): void
+    {
+        $result = RegexParser::parse('/(?<=abc)/');
+        static::assertStringContainsString('assertBehind()', $result);
+        static::assertStringContainsString("string('abc')", $result);
+        static::assertStringContainsString('end()', $result);
+    }
+
+    public function testParseNegativeLookbehind(): void
+    {
+        $result = RegexParser::parse('/(?<!abc)/');
+        static::assertStringContainsString('assertNotBehind()', $result);
+        static::assertStringContainsString("string('abc')", $result);
+        static::assertStringContainsString('end()', $result);
+    }
+
+    public function testParseLookaheadWithPattern(): void
+    {
+        $result = RegexParser::parse('/\d+(?=px)/');
+        static::assertStringContainsString('oneOrMore()->digit()', $result);
+        static::assertStringContainsString('assertAhead()', $result);
+        static::assertStringContainsString("string('px')", $result);
+    }
+
+    public function testParseLookbehindWithPattern(): void
+    {
+        $result = RegexParser::parse('/(?<=\$)\d+/');
+        static::assertStringContainsString('assertBehind()', $result);
+        static::assertStringContainsString("char('\$')", $result);
+        static::assertStringContainsString('oneOrMore()->digit()', $result);
+    }
+
+    // =========================================================================
     // COMPLEX PATTERNS
     // =========================================================================
 
@@ -336,13 +388,6 @@ final class RegexParserTest extends TestCase
     {
         $this->expectException(RegexParseException::class);
         RegexParser::parse('/[abc/');
-    }
-
-    public function testErrorOnLookahead(): void
-    {
-        $this->expectException(RegexParseException::class);
-        $this->expectExceptionMessage('lookahead');
-        RegexParser::parse('/(?=abc)/');
     }
 
     public function testErrorOnBackreference(): void

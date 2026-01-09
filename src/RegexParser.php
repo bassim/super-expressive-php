@@ -15,6 +15,10 @@ final class RegexParser
     private const TOKEN_CHAR_SET_END = 'CHAR_SET_END';
     private const TOKEN_GROUP_START = 'GROUP_START';
     private const TOKEN_GROUP_NC_START = 'GROUP_NC_START';
+    private const TOKEN_LOOKAHEAD = 'LOOKAHEAD';
+    private const TOKEN_NEGATIVE_LOOKAHEAD = 'NEGATIVE_LOOKAHEAD';
+    private const TOKEN_LOOKBEHIND = 'LOOKBEHIND';
+    private const TOKEN_NEGATIVE_LOOKBEHIND = 'NEGATIVE_LOOKBEHIND';
     private const TOKEN_GROUP_END = 'GROUP_END';
     private const TOKEN_QUANTIFIER = 'QUANTIFIER';
     private const TOKEN_LITERAL = 'LITERAL';
@@ -166,9 +170,34 @@ final class RegexParser
                 $this->advance();
                 return ['type' => self::TOKEN_GROUP_NC_START, 'value' => '(?:', 'position' => $pos];
             }
+            // Lookahead: (?= and (?!
+            if ($this->peek() === '?' && $this->peek(1) === '=') {
+                $this->advance();
+                $this->advance();
+                return ['type' => self::TOKEN_LOOKAHEAD, 'value' => '(?=', 'position' => $pos];
+            }
+            if ($this->peek() === '?' && $this->peek(1) === '!') {
+                $this->advance();
+                $this->advance();
+                return ['type' => self::TOKEN_NEGATIVE_LOOKAHEAD, 'value' => '(?!', 'position' => $pos];
+            }
+            // Lookbehind: (?<= and (?<!
+            if ($this->peek() === '?' && $this->peek(1) === '<' && $this->peek(2) === '=') {
+                $this->advance();
+                $this->advance();
+                $this->advance();
+                return ['type' => self::TOKEN_LOOKBEHIND, 'value' => '(?<=', 'position' => $pos];
+            }
+            if ($this->peek() === '?' && $this->peek(1) === '<' && $this->peek(2) === '!') {
+                $this->advance();
+                $this->advance();
+                $this->advance();
+                return ['type' => self::TOKEN_NEGATIVE_LOOKBEHIND, 'value' => '(?<!', 'position' => $pos];
+            }
+            // Named groups still not supported
             if ($this->peek() === '?') {
                 throw new RegexParseException(
-                    'Unsupported group type (lookahead/lookbehind/named groups not supported in v1)',
+                    'Unsupported group type (named groups not supported)',
                     $this->input,
                     $pos
                 );
@@ -469,6 +498,18 @@ final class RegexParser
             case self::TOKEN_GROUP_NC_START:
                 return $this->parseGroup($token['type'] === self::TOKEN_GROUP_START);
 
+            case self::TOKEN_LOOKAHEAD:
+                return $this->parseAssertion('assertAhead');
+
+            case self::TOKEN_NEGATIVE_LOOKAHEAD:
+                return $this->parseAssertion('assertNotAhead');
+
+            case self::TOKEN_LOOKBEHIND:
+                return $this->parseAssertion('assertBehind');
+
+            case self::TOKEN_NEGATIVE_LOOKBEHIND:
+                return $this->parseAssertion('assertNotBehind');
+
             case self::TOKEN_GROUP_END:
                 return null;
 
@@ -594,6 +635,30 @@ final class RegexParser
         return $this->applyQuantifierIfPresent($node);
     }
 
+    private function parseAssertion(string $type): array
+    {
+        $this->tokenIndex++; // consume assertion start
+
+        $children = [];
+        while ($this->tokenIndex < \count($this->tokens)) {
+            $token = $this->tokens[$this->tokenIndex];
+            if ($token['type'] === self::TOKEN_GROUP_END) {
+                $this->tokenIndex++;
+                break;
+            }
+            $node = $this->parseAtom();
+            if ($node !== null) {
+                $children[] = $node;
+            }
+        }
+
+        // Assertions cannot have quantifiers
+        return [
+            'type' => $type,
+            'children' => $children,
+        ];
+    }
+
     private function applyQuantifierIfPresent(array $node): array
     {
         if ($this->tokenIndex >= \count($this->tokens)) {
@@ -703,6 +768,12 @@ final class RegexParser
             case 'capture':
                 return $this->generateGroup($node, $indent);
 
+            case 'assertAhead':
+            case 'assertNotAhead':
+            case 'assertBehind':
+            case 'assertNotBehind':
+                return $this->generateAssertion($node, $indent);
+
             default:
                 return $prefix . "/* unsupported: {$node['type']} */";
         }
@@ -783,6 +854,37 @@ final class RegexParser
         $quantifier = isset($node['quantifier']) ? $this->getQuantifierMethod($node['quantifier']) . '->' : '';
         $groupMethod = $node['type'] === 'capture' ? 'capture()' : 'group()';
         $lines[] = $prefix . $quantifier . $groupMethod;
+
+        foreach ($node['children'] as $child) {
+            $generated = $this->generateNode($child, $innerIndent);
+            if (\is_array($generated)) {
+                foreach ($generated as $line) {
+                    $lines[] = $line;
+                }
+            } else {
+                $lines[] = $generated;
+            }
+        }
+
+        $lines[] = str_repeat('    ', $innerIndent) . '->end()';
+
+        return $lines;
+    }
+
+    private function generateAssertion(array $node, int $indent): array
+    {
+        $prefix = str_repeat('    ', $indent) . '->';
+        $innerIndent = $indent + 1;
+
+        $methodMap = [
+            'assertAhead' => 'assertAhead()',
+            'assertNotAhead' => 'assertNotAhead()',
+            'assertBehind' => 'assertBehind()',
+            'assertNotBehind' => 'assertNotBehind()',
+        ];
+
+        $lines = [];
+        $lines[] = $prefix . $methodMap[$node['type']];
 
         foreach ($node['children'] as $child) {
             $generated = $this->generateNode($child, $innerIndent);
