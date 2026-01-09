@@ -908,7 +908,7 @@ final class SuperExpressive
                 'You can ignore a subexpressions startOfInput/endOfInput markers with the ignoreStartAndEnd option'
             );
 
-            $parent->state->hasDefinedEnd = true;
+            $parent->state->hasDefinedStart = true;
         }
 
         if ('endOfInput' === $nextEl->type) {
